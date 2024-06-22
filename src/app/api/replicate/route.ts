@@ -7,8 +7,8 @@ export async function POST(request: Request) {
 
   const {image, prompt} = req;
 
-  if(!image || !!prompt) return NextResponse.json(
-      { error: 'not image or prompt' },
+  if(!image || !prompt) return NextResponse.json(
+      { error: 'not image or prompt /api' },
       { status: 500 }
     );
   

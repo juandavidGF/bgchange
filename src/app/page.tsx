@@ -83,7 +83,7 @@ function ActionPanel({ isLoading, submitImage }: ActionPanelProps) {
             </h3>
             <div className="mt-2 max-w-xl text-sm text-gray-500">
               <p>
-                Upload an image of a room and let our AI generate a new design.
+                Upload an image of a product and let our AI generate a new background.
               </p>
             </div>
           </div>
@@ -323,8 +323,8 @@ export default function HomePage() {
    * @returns {Promise<void>}
    */
   async function submitImage(): Promise<void> {
-    if (!file) {
-      setError("Please upload an image.");
+    if (!file || !prompt) {
+      setError("Please upload an image & fill the prompt");
       return;
     }
 
@@ -349,7 +349,7 @@ export default function HomePage() {
 
     // Output returns an array of two images
     // Here we show the second image
-    setOutputImage(result.output[1]);
+    setOutputImage(result.output[0]);
     setLoading(false);
   }
 
