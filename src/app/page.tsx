@@ -373,11 +373,11 @@ export default function HomePage() {
           onChange={setRoom}
         /> */}
       {/* </section> */}
-      <Field className="px-4 lg:px-6 xl:gap-8 xl:px-8">
+      <Field className="flex flex-col px-4 gap-1 lg:px-6 xl:gap-1 xl:px-8">
         <Label className="text-sm/6 font-medium text-white">Prompt</Label>
         <Description className="text-sm/6 text-white/50">Describe what is the background you want the image change for.</Description>
         <Input 
-        className="border bg-slate-500 rounded-lg"
+        className="border bg-slate-500 rounded-lg w-full"
         name="prompt"
         onChange={(e)=> setPrompt(e.target.value)}
         />
