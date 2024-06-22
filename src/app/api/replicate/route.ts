@@ -5,21 +5,27 @@ export async function POST(request: Request) {
   // 1. Get request data (in JSON format) from the client
   const req = await request.json();
 
-  const image = req.image;
-  const theme = req.theme;
-  const room = req.room;
+  const {image, prompt} = req;
 
+  if(!image || !!prompt) return NextResponse.json(
+      { error: 'not image or prompt' },
+      { status: 500 }
+    );
+  
   const replicate = new Replicate({
     auth: process.env.REPLICATE_API_TOKEN as string,
   });
 
   const model =
-    'jagilley/controlnet-hough:854e8727697a057c525cdb45ab037f64ecca770a1769cc52287c2e56472a247b';
+    "dhanushreddy291/photo-background-generation:1db5ee211d65558d3fd11fc60bc00073f300d7a3a0b5abbfafbd20239ac58d2f";
 
   const input = {
     image,
-    prompt: `A ${theme} ${room} Editorial Style Photo, Symmetry, Straight On, Modern Living Room, Large Window, Leather, Glass, Metal, Wood Paneling, Neutral Palette, Ikea, Natural Light, Apartment, Afternoon, Serene, Contemporary, 4k`,
-    a_prompt: `best quality, extremely detailed, photo from Pinterest, interior, cinematic photo, ultra-detailed, ultra-realistic, award-winning`,
+    prompt,
+    num_outputs: 1,
+    negative_prompt: "3d, cgi, render, bad quality, normal quality",
+    num_inference_steps: 30,
+    controlnet_conditioning_scale: 1
   };
 
   const output = await replicate.run(model, { input });

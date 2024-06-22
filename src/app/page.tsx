@@ -12,6 +12,7 @@ import { PhotoIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu"
 import { ImageAreaProps } from "@/types";
+import { Field, Input, Label, Description, } from "@headlessui/react";
 
 type ErrorNotificationProps = {
   errorMessage: string;
@@ -235,6 +236,7 @@ function ImageDropzone(
 export default function HomePage() {
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<string | null>(null);
   const [theme, setTheme] = useState<string>(themes[0]);
   const [room, setRoom] = useState<string>(rooms[0]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -333,7 +335,7 @@ export default function HomePage() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ image: base64Image, theme, room }),
+      body: JSON.stringify({ image: base64Image, prompt }),
     });
 
     const result = await response.json();
@@ -356,8 +358,9 @@ export default function HomePage() {
       {error ? <ErrorNotification errorMessage={error} /> : null}
       <ActionPanel isLoading={loading} submitImage={submitImage} />
 
-      {/* <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
-        <SelectMenu
+      {/* <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8"> */}
+        {/* <Input name="full_name" type="text" /> */}
+        {/* <SelectMenu
           label="Model"
           options={themes}
           selected={theme}
@@ -368,8 +371,17 @@ export default function HomePage() {
           options={rooms}
           selected={room}
           onChange={setRoom}
+        /> */}
+      {/* </section> */}
+      <Field className="px-4 lg:px-6 xl:gap-8 xl:px-8">
+        <Label className="text-sm/6 font-medium text-white">Prompt</Label>
+        <Description className="text-sm/6 text-white/50">Describe what is the background you want the image change for.</Description>
+        <Input 
+        className="border bg-slate-500 rounded-lg"
+        name="prompt"
+        onChange={(e)=> setPrompt(e.target.value)}
         />
-      </section> */}
+      </Field>
 
       <section className="mt-10 grid flex-1 gap-6 px-4 lg:px-6 xl:grid-cols-2 xl:gap-8 xl:px-8">
         {!file ? (
