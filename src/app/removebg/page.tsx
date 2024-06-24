@@ -330,7 +330,7 @@ export default function HomePage() {
 
     setLoading(true);
 
-    const response = await fetch("/api/replicate", {
+    const response = await fetch("/removebg", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
