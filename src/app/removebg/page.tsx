@@ -236,7 +236,6 @@ function ImageDropzone(
 export default function HomePage() {
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<string | null>(null);
   const [theme, setTheme] = useState<string>(themes[0]);
   const [room, setRoom] = useState<string>(rooms[0]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -323,23 +322,22 @@ export default function HomePage() {
    * @returns {Promise<void>}
    */
   async function submitImage(): Promise<void> {
-    if (!file || !prompt) {
-      setError("Please upload an image & fill the prompt");
+    if (!file) {
+      setError("Please upload an image");
       return;
     }
 
     setLoading(true);
 
-    const response = await fetch("/removebg", {
+    const response = await fetch("/api/removebg", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ image: base64Image, prompt }),
+      body: JSON.stringify({ image: base64Image }),
     });
 
     const result = await response.json();
-    console.log(result);
 
     if (result.error) {
       setError(result.error);
@@ -349,7 +347,7 @@ export default function HomePage() {
 
     // Output returns an array of two images
     // Here we show the second image
-    setOutputImage(result.output[0]);
+    setOutputImage(result.output);
     setLoading(false);
   }
 
@@ -357,31 +355,6 @@ export default function HomePage() {
     <main className="flex min-h-screen flex-col py-10 lg:pl-72">
       {error ? <ErrorNotification errorMessage={error} /> : null}
       <ActionPanel isLoading={loading} submitImage={submitImage} />
-
-      {/* <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8"> */}
-        {/* <Input name="full_name" type="text" /> */}
-        {/* <SelectMenu
-          label="Model"
-          options={themes}
-          selected={theme}
-          onChange={setTheme}
-        />
-        <SelectMenu
-          label="Room type"
-          options={rooms}
-          selected={room}
-          onChange={setRoom}
-        /> */}
-      {/* </section> */}
-      <Field className="flex flex-col px-4 gap-1 lg:px-6 xl:gap-1 xl:px-8">
-        <Label className="text-sm/6 font-medium text-white">Prompt</Label>
-        <Description className="text-sm/6 text-white/50">Describe what is the background you want the image change for.</Description>
-        <Input 
-        className="border bg-slate-500 rounded-lg w-full"
-        name="prompt"
-        onChange={(e)=> setPrompt(e.target.value)}
-        />
-      </Field>
 
       <section className="mt-10 grid flex-1 gap-6 px-4 lg:px-6 xl:grid-cols-2 xl:gap-8 xl:px-8">
         {!file ? (
