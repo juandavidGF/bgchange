@@ -37,8 +37,6 @@ type ImageOutputProps = ImageAreaProps & {
   downloadOutputImage(): void;
 };
 
-const sources = ["None", "Left Light", "Right Light", "Bottom Light", "Top Light"];
-
 const acceptedFileTypes = {
   "image/jpeg": [".jpeg", ".jpg", ".png"],
 };
@@ -234,8 +232,6 @@ function ImageDropzone(
 export default function HomePage() {
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
-  const [source, setSource] = useState<string>(sources[0]);
-  const [prompt, setPrompt] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>("");
   const [file, setFile] = useState<File | null>(null);
@@ -327,12 +323,12 @@ export default function HomePage() {
 
     setLoading(true);
 
-    const response = await fetch("/api/illuminai", {
+    const response = await fetch("/api/upscale", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ image: base64Image, source, prompt }),
+      body: JSON.stringify({ image: base64Image }),
     });
 
     const result = await response.json();
@@ -352,31 +348,6 @@ export default function HomePage() {
     <main className="flex min-h-screen flex-col py-10 lg:pl-72">
       {error ? <ErrorNotification errorMessage={error} /> : null}
       <ActionPanel isLoading={loading} submitImage={submitImage} />
-
-      <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
-        <div className="w-80">
-          <label className="block text-sm font-medium leading-6 text-gray-300">
-            Prompt
-          </label>
-          <textarea
-          className="mt-2 w-full border bg-slate-800 text-sm text-gray-300 leading-6 text-left pl-3 py-1 rounded-md"
-          // type="text"
-          onChange={(e) => setPrompt(e.target.value)}
-          />
-        </div>
-        <SelectMenu
-          label="Light Source"
-          options={sources}
-          selected={source}
-          onChange={setSource}
-        />
-        {/* <SelectMenu
-          label="Room type"
-          options={rooms}
-          selected={room}
-          onChange={setRoom}
-        /> */}
-      </section>
 
       <section className="mt-10 grid flex-1 gap-6 px-4 lg:px-6 xl:grid-cols-2 xl:gap-8 xl:px-8">
         {!file ? (

@@ -23,24 +23,36 @@ export async function POST(request: Request) {
     "zsxkib/ic-light:d41bcb10d8c159868f4cfbd7c6a2ca01484f7d39e4613419d5952c61562f1ba7";
 
   const input = {
-      cfg: 2,
-      steps: 25,
-      width: 512,
-      height: 640,
-      prompt: prompt,
-      light_source: "Left Light",
-      highres_scale: 1.5,
-      output_format: "webp",
-      subject_image: image,
-      lowres_denoise: 0.9,
-      output_quality: 80,
-      appended_prompt: "best quality",
-      highres_denoise: 0.5,
-      negative_prompt: "lowres, bad anatomy, bad hands, cropped, worst quality",
-      number_of_images: 1
-    }
+    cfg: 2,
+    steps: 25,
+    width: 512,
+    height: 640,
+    prompt: prompt,
+    light_source: "Left Light",
+    highres_scale: 1.5,
+    output_format: "webp",
+    subject_image: image,
+    lowres_denoise: 0.9,
+    output_quality: 80,
+    appended_prompt: "best quality",
+    highres_denoise: 0.5,
+    negative_prompt: "lowres, bad anatomy, bad hands, cropped, worst quality, dark",
+    number_of_images: 1
+  }
 
-  const output = await replicate.run(model, { input });
+  let output: any | null = null;
+
+  try {
+    output = await replicate.run(model, { input });
+  } catch (error: any) {
+    console.log('illuminai /api', {error});
+    return NextResponse.json(
+      { error: `Something went wrong, ${error.message}` },
+      { status: 500 }
+    );
+  }
+
+  
   
   // const output = [
   //   "https://replicate.delivery/pbxt/DCiXOO8IjXKeM6ecacI0hP7jEBfHX5uYt3a0bf85dNNYBwHMB/generated_0.webp"

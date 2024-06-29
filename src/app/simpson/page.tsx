@@ -10,8 +10,9 @@ import { FaDownload } from "react-icons/fa";
 import { XCircleIcon } from "@heroicons/react/20/solid";
 import { PhotoIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/outline";
-import { SelectMenu } from "@/app/selectmenu";
+import { SelectMenu } from "@/app/selectmenu"
 import { ImageAreaProps } from "@/types";
+import { Field, Input, Label, Description, } from "@headlessui/react";
 
 type ErrorNotificationProps = {
   errorMessage: string;
@@ -37,7 +38,8 @@ type ImageOutputProps = ImageAreaProps & {
   downloadOutputImage(): void;
 };
 
-const sources = ["None", "Left Light", "Right Light", "Bottom Light", "Top Light"];
+const themes = ["Modern", "Vintage", "Minimalist", "Professional"];
+const rooms = ["Living Room", "Dining Room", "Bedroom", "Bathroom", "Office"];
 
 const acceptedFileTypes = {
   "image/jpeg": [".jpeg", ".jpg", ".png"],
@@ -81,7 +83,7 @@ function ActionPanel({ isLoading, submitImage }: ActionPanelProps) {
             </h3>
             <div className="mt-2 max-w-xl text-sm text-gray-500">
               <p>
-                Upload an image of a room and let our AI generate a new design.
+                Upload an image of a product and let our AI generate a new background.
               </p>
             </div>
           </div>
@@ -234,8 +236,9 @@ function ImageDropzone(
 export default function HomePage() {
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
-  const [source, setSource] = useState<string>(sources[0]);
   const [prompt, setPrompt] = useState<string | null>(null);
+  const [theme, setTheme] = useState<string>(themes[0]);
+  const [room, setRoom] = useState<string>(rooms[0]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>("");
   const [file, setFile] = useState<File | null>(null);
@@ -320,19 +323,19 @@ export default function HomePage() {
    * @returns {Promise<void>}
    */
   async function submitImage(): Promise<void> {
-    if (!file) {
-      setError("Please upload an image.");
+    if (!file || !prompt) {
+      setError("Please upload an image & fill the prompt");
       return;
     }
 
     setLoading(true);
 
-    const response = await fetch("/api/illuminai", {
+    const response = await fetch("/api/simpson", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ image: base64Image, source, prompt }),
+      body: JSON.stringify({ image: base64Image, prompt }),
     });
 
     const result = await response.json();
@@ -344,6 +347,8 @@ export default function HomePage() {
       return;
     }
 
+    // Output returns an array of two images
+    // Here we show the second image
     setOutputImage(result.output[0]);
     setLoading(false);
   }
@@ -353,30 +358,30 @@ export default function HomePage() {
       {error ? <ErrorNotification errorMessage={error} /> : null}
       <ActionPanel isLoading={loading} submitImage={submitImage} />
 
-      <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
-        <div className="w-80">
-          <label className="block text-sm font-medium leading-6 text-gray-300">
-            Prompt
-          </label>
-          <textarea
-          className="mt-2 w-full border bg-slate-800 text-sm text-gray-300 leading-6 text-left pl-3 py-1 rounded-md"
-          // type="text"
-          onChange={(e) => setPrompt(e.target.value)}
-          />
-        </div>
-        <SelectMenu
-          label="Light Source"
-          options={sources}
-          selected={source}
-          onChange={setSource}
-        />
+      {/* <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8"> */}
+        {/* <Input name="full_name" type="text" /> */}
         {/* <SelectMenu
+          label="Model"
+          options={themes}
+          selected={theme}
+          onChange={setTheme}
+        />
+        <SelectMenu
           label="Room type"
           options={rooms}
           selected={room}
           onChange={setRoom}
         /> */}
-      </section>
+      {/* </section> */}
+      <Field className="flex flex-col px-4 gap-1 lg:px-6 xl:gap-1 xl:px-8">
+        <Label className="text-sm/6 font-medium text-white">Prompt</Label>
+        <Description className="text-sm/6 text-white/50">Describe the simpson charachter.</Description>
+        <Input 
+        className="border bg-slate-500 rounded-lg w-full"
+        name="prompt"
+        onChange={(e)=> setPrompt(e.target.value)}
+        />
+      </Field>
 
       <section className="mt-10 grid flex-1 gap-6 px-4 lg:px-6 xl:grid-cols-2 xl:gap-8 xl:px-8">
         {!file ? (
