@@ -16,26 +16,42 @@ export async function POST(request: Request) {
     auth: process.env.REPLICATE_API_TOKEN as string,
   });
 
-  const model =
+  const modelS =
     "fofr/sdxl-simpsons-characters:f4d36a72b43ea2fd511cab0afb32539955ee5b28b65c8e3fb7d8abd254be8e91";
+
+  const model = 
+    "fofr/pulid-base:65ea75658bf120abbbdacab07e89e78a74a6a1b1f504349f4c4e3b01a655ee7a";
+
+  // const input = {
+  //   width: 1024,
+  //   height: 1024,
+  //   prompt: prompt,
+  //   refine: "expert_ensemble_refiner",
+  //   scheduler: "K_EULER",
+  //   lora_scale: 0.6,
+  //   num_outputs: 1,
+  //   guidance_scale: 7.5,
+  //   apply_watermark: false,
+  //   high_noise_frac: 0.8,
+  //   negative_prompt: "ugly, broken, distorted, artefacts, 3D, render, photography",
+  //   prompt_strength: 0.8,
+  //   num_inference_steps: 30
+  // }
 
   const input = {
     width: 1024,
     height: 1024,
     prompt: prompt,
-    refine: "expert_ensemble_refiner",
-    scheduler: "K_EULER",
-    lora_scale: 0.6,
-    num_outputs: 1,
-    guidance_scale: 7.5,
-    apply_watermark: false,
-    high_noise_frac: 0.8,
-    negative_prompt: "ugly, broken, distorted, artefacts, 3D, render, photography",
-    prompt_strength: 0.8,
-    num_inference_steps: 30
+    face_image: image,
+    face_style: "high-fidelity",
+    output_format: "webp",
+    output_quality: 80,
+    negative_prompt: "boy",
+    checkpoint_model: "animated - starlightXLAnimated_v3",
+    number_of_images: 1
   }
   
-  
+
   const output = await replicate.run(model, { input });
 
   if (!output) {
