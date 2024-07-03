@@ -4,7 +4,9 @@ import { HomeIcon,
   SunIcon, 
   CubeTransparentIcon,
   FaceSmileIcon,
-  PaintBrushIcon } from '@heroicons/react/24/outline';
+  PaintBrushIcon,
+  VideoCameraSlashIcon,
+} from '@heroicons/react/24/outline';
 import { NavItem } from '@/types';
 
 export const navigation: Array<NavItem> = [
@@ -15,4 +17,5 @@ export const navigation: Array<NavItem> = [
   { name: 'Remove Background', href: '/removebg', icon: BoltSlashIcon },
   { name: 'Become Simpson', href: '/simpson', icon: FaceSmileIcon },
   { name: 'FreshInk', href: '/app/freshink', icon: PaintBrushIcon },
+  { name: 'Create Video', href: '/app/createVideo', icon: VideoCameraSlashIcon },
 ];
