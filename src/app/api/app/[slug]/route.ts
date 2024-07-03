@@ -25,7 +25,8 @@ export async function POST(
     auth: process.env.REPLICATE_API_TOKEN as string,
   });
 
-  const model: `${string}/${string}` | `${string}/${string}:${string}` | undefined = sheme?.model;
+  const model: 
+    `${string}/${string}` | `${string}/${string}:${string}` | undefined = sheme?.model;
 
   if(!model || typeof model !== "string") throw Error(`not model found or format issue ${model}`);
 
@@ -44,7 +45,7 @@ export async function POST(
     );
   }
 
-  console.log('Output', output);
+  console.log({output});
   return NextResponse.json({ output }, { status: 201 });
 }
 
@@ -74,6 +75,18 @@ function getModel({slug}: {slug: string}) {
         }
       }
       break;
+    case 'createVideo':
+      model = "chenxwh/diffsynth-exvideo:b3b0e929bf918153fbc0c5444fbe215f5cdbdbdf610910cf4dfcb6f6006e4783";
+      sheme = {
+        model,
+        input: {
+          prompt: "bonfire, on the stone",
+          num_frames: 128,
+          negative_prompt: "错误的眼睛，糟糕的人脸，毁容，糟糕的艺术，变形，多余的肢体，模糊的颜色，模糊，重复，病态，残缺，",
+          num_inference_steps: 25,
+          num_inference_steps_upscale_video: 25
+        }
+      }
     default:
       break;
   }

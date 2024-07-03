@@ -249,17 +249,18 @@ function layout({slug}: {slug: string}) {
   return {model};
 }
 
+type Slug = "createVideo" | "freshink";
 /**
  * Display the home page
  */
-export default function HomePage({ params }: { params: { slug: "freshink" } }) {
+export default function HomePage({ params }: { params: { slug: Slug } }) {
 
 
   const slug = params.slug;
-  if(slug !== "freshink") return <PageNotFound />;
+  if(slug !== "freshink" && slug !== "createVideo") return <PageNotFound />;
   const {model} = layout({slug});
 
-  const [app, setApp] = useState<'freshink'>(slug);
+  const [app, setApp] = useState<string>(slug);
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
   const [source, setSource] = useState<string>(sources[0]);
@@ -383,21 +384,24 @@ export default function HomePage({ params }: { params: { slug: "freshink" } }) {
       <ActionPanel isLoading={loading} submitImage={() => submitImage({slug})} />
 
       <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
-        {slug === 'freshink' && <div className="w-80">
+        {(slug === 'freshink' || slug === 'createVideo') && <div className="w-80">
             <label className="block text-sm font-medium leading-6 text-gray-300">
               Prompt,
               <br/>
-              describe the tatto you want to create
+              {slug === 'freshink' ? 
+                ("describe the tatto you want to create") 
+                : "describe the video you want to create"
+              }
             </label>
             <textarea
               className="mt-2 w-full border bg-slate-800 text-sm text-gray-300 leading-6 text-left pl-3 py-1 rounded-md"
-              placeholder="A fresh ink TOK tattoo"
+              placeholder={slug === 'freshink' ? "A fresh ink TOK tattoo" : "bonfire, on the stone"}
               // type="text"
               onChange={(e) => setPrompt(e.target.value)}
             />
           </div>
         }
-        {slug !== 'freshink' && <SelectMenu
+        {(slug !== 'freshink' && slug !== 'createVideo' ) && <SelectMenu
             label="Light Source"
             options={sources}
             selected={source}
@@ -427,13 +431,23 @@ export default function HomePage({ params }: { params: { slug: "freshink" } }) {
           />
         )} */}
 
-        <ImageOutput
-          title={`AI-generated output goes here`}
-          downloadOutputImage={downloadOutputImage}
-          outputImage={outputImage}
-          icon={SparklesIcon}
-          loading={loading}
-        />
+
+
+        {slug === 'freshink' ? 
+          <ImageOutput
+            title={`AI-generated output goes here`}
+            downloadOutputImage={downloadOutputImage}
+            outputImage={outputImage}
+            icon={SparklesIcon}
+            loading={loading}
+          />
+          :
+          <video width="520" height="340" controls>
+            <source src="video.mp4" type="video/mp4"/>
+            <source src="video.ogg" type="video/ogg"/>
+            Your browser does not support the video tag.
+          </video>
+        }
       </section>
     </main>
   );
