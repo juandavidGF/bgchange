@@ -1,57 +1,74 @@
 import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
 
+type Slug = "createVideo" | "freshink";
+type Status = "successful" | "failed" | "canceled";
+
 export async function POST(
   request: Request,
-  { params }: { params: { slug: string } },
+  { params }: { params: { slug: Slug } },
 ) {
   const req = await request.json();
 
   const slug = params.slug;
-  if(slug !== 'freshink') return NextResponse.json(
-    { error: 'Something went wrong, api, slug not allowed' },
+  if(slug !== 'freshink' && slug !== 'createVideo') return NextResponse.json(
+    { error: `Something went wrong, api, slug ${slug} not allowed` },
     { status: 500 }
   );
-  const {sheme} = getModel({slug});
 
-  const {prompt} = req;
-
-  if(!prompt) return NextResponse.json(
-      { error: 'not image or prompt /api' },
-      { status: 500 }
-    );
+  try {
+    const {sheme} = getModel({slug});
+    const {prompt} = req;
   
-  const replicate = new Replicate({
-    auth: process.env.REPLICATE_API_TOKEN as string,
-  });
-
-  const model: 
-    `${string}/${string}` | `${string}/${string}:${string}` | undefined = sheme?.model;
-
-  if(!model || typeof model !== "string") throw Error(`not model found or format issue ${model}`);
-
-  const input = sheme?.input;
-  if(!input) throw Error('input is not a object');
-
-  input.prompt = prompt;
-
-  const output = await replicate.run(model, { input });
-
-  if (!output) {
-    console.log('Something went wrong');
+    if(!prompt) return NextResponse.json(
+        { error: 'not image or prompt /api' },
+        { status: 500 }
+      );
+    
+    const replicate = new Replicate({
+      auth: process.env.REPLICATE_API_TOKEN as string,
+    });
+  
+    const model: 
+      `${string}/${string}` | `${string}/${string}:${string}` | undefined = sheme?.model;
+  
+    if(!model || typeof model !== "string") throw Error(`not model found or format issue ${model}`);
+  
+    const input = sheme?.input;
+    if(!input) throw Error('input is not a object');
+  
+    input.prompt = prompt;
+  
+    // const output = await replicate.run(model, { input });
+    const output = await replicate.predictions.create({
+      model,
+      input,
+    });
+  
+    if (!output) {
+      console.log('Something went wrong');
+      return NextResponse.json(
+        { error: 'Something went wrong' },
+        { status: 500 }
+      );
+    }
+  
+    console.log({output});
+    return NextResponse.json({ output }, { status: 201 });
+  } catch (error: any) {
+    console.error(error.message);
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: error.message },
       { status: 500 }
     );
   }
-
-  console.log({output});
-  return NextResponse.json({ output }, { status: 201 });
 }
 
 function getModel({slug}: {slug: string}) {
   let sheme;
   let model: `${string}/${string}` | `${string}/${string}:${string}`;
+
+  console.log({slug});
 
   switch (slug) {
     case 'freshink':
@@ -87,8 +104,9 @@ function getModel({slug}: {slug: string}) {
           num_inference_steps_upscale_video: 25
         }
       }
-    default:
       break;
+    default:
+      throw Error('case not found');
   }
 
   return {sheme};

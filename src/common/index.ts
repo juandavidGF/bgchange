@@ -5,7 +5,8 @@ import { HomeIcon,
   CubeTransparentIcon,
   FaceSmileIcon,
   PaintBrushIcon,
-  VideoCameraSlashIcon,
+  VideoCameraIcon,
+  HandRaisedIcon,
 } from '@heroicons/react/24/outline';
 import { NavItem } from '@/types';
 
@@ -17,5 +18,6 @@ export const navigation: Array<NavItem> = [
   { name: 'Remove Background', href: '/removebg', icon: BoltSlashIcon },
   { name: 'Become Simpson', href: '/simpson', icon: FaceSmileIcon },
   { name: 'FreshInk', href: '/app/freshink', icon: PaintBrushIcon },
-  { name: 'Create Video', href: '/app/createVideo', icon: VideoCameraSlashIcon },
+  { name: 'Create Video', href: '/app/createVideo', icon: VideoCameraIcon },
+  { name: 'Hair Style', href: '/app/hairStyle', icon: HandRaisedIcon },
 ];

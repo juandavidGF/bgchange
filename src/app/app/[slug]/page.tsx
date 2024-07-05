@@ -12,6 +12,7 @@ import { PhotoIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu";
 import { ImageAreaProps } from "@/types";
+import { delay } from "@/utils";
 
 type ErrorNotificationProps = {
   errorMessage: string;
@@ -249,7 +250,8 @@ function layout({slug}: {slug: string}) {
   return {model};
 }
 
-type Slug = "createVideo" | "freshink";
+type Slug = "createVideo" | "freshink" | "hairStyle";
+type Status = "successful" | "failed" | "canceled";
 /**
  * Display the home page
  */
@@ -257,11 +259,16 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
 
 
   const slug = params.slug;
-  if(slug !== "freshink" && slug !== "createVideo") return <PageNotFound />;
+  if(slug !== "freshink" 
+    && slug !== "createVideo" 
+    && slug !== "hairStyle"
+  ) return <PageNotFound />;
+  
   const {model} = layout({slug});
-
+  
   const [app, setApp] = useState<string>(slug);
   const [outputImage, setOutputImage] = useState<string | null>(null);
+  const [outputVideo, setOutputVideo] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
   const [source, setSource] = useState<string>(sources[0]);
   const [prompt, setPrompt] = useState<string | null>(null);
@@ -348,31 +355,70 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
    * Submit the image to the server
    * @returns {Promise<void>}
    */
-  async function submitImage({slug}: {slug: string}): Promise<void> {
+  async function submitImage({slug}: {slug: Slug}): Promise<void> {
     if (!prompt) {
-      setError("Please upload an image.");
+      setError("Please upload a a prompt.");
       return;
     }
 
     setLoading(true);
 
 
-    const response = await fetch(`/api/app/${slug}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ prompt }),
-    });
+    // const response = await fetch(`/api/app/${slug}`, {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: JSON.stringify({ prompt }),
+    // });
 
-    const result = await response.json();
-    console.log(result);
+    // const result = await response.json();
+    // console.log(result);
 
-    if (result.error) {
-      setError(result.error);
+    // if (result.error) {
+    //   setError(result.error);
+    //   setLoading(false);
+    //   return;
+    // }
+
+    const id = "mv5ewyeka9rgg0cgf7jv2z6yyr";
+
+    let response: any;
+    let result: any;
+    let status: Status | null = null;
+
+    await delay(1_000);
+
+    do {
+      response = await fetch(`/api/app/${slug}/get`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
+      });
+
+      result = await response.json();
+      
+      // console.log({result});
+      
+      if (result.error) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+
+      const {status} = result.state;
+      console.log({status});
+
+      await delay(500);
+    } while (status === 'successful');
+
+    if(slug === 'createVideo') {
+      setOutputVideo(result.state.output.upscale_video);
       setLoading(false);
       return;
-    }
+    };
 
     setOutputImage(result.output[0]);
     setLoading(false);
@@ -384,24 +430,34 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
       <ActionPanel isLoading={loading} submitImage={() => submitImage({slug})} />
 
       <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
-        {(slug === 'freshink' || slug === 'createVideo') && <div className="w-80">
+        {(slug === 'freshink' || slug === 'createVideo' || slug === 'hairStyle') && <div className="w-80">
             <label className="block text-sm font-medium leading-6 text-gray-300">
               Prompt,
               <br/>
               {slug === 'freshink' ? 
-                ("describe the tatto you want to create") 
-                : "describe the video you want to create"
+                ("describe the tatto you want to create")
+                  : slug === 'createVideo' 
+                    ? "describe the video you want to create"
+                    : "describe the hair style"
               }
             </label>
             <textarea
               className="mt-2 w-full border bg-slate-800 text-sm text-gray-300 leading-6 text-left pl-3 py-1 rounded-md"
-              placeholder={slug === 'freshink' ? "A fresh ink TOK tattoo" : "bonfire, on the stone"}
+              placeholder={
+                slug === 'freshink' ? 
+                  ("A fresh ink TOK tattoo") 
+                    : slug === 'createVideo' 
+                      ? "bonfire, on the stone"
+                      : "a face with a bowlcut"
+                }
               // type="text"
               onChange={(e) => setPrompt(e.target.value)}
             />
           </div>
         }
-        {(slug !== 'freshink' && slug !== 'createVideo' ) && <SelectMenu
+        {(slug !== 'freshink' 
+        && slug !== 'createVideo'
+        && slug !== 'hairStyle' ) && <SelectMenu
             label="Light Source"
             options={sources}
             selected={source}
@@ -417,23 +473,23 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
       </section>
 
       <section className="mt-10 grid flex-1 gap-6 px-4 lg:px-6 xl:grid-cols-2 xl:gap-8 xl:px-8">
-        {/* {!file ? (
-          <ImageDropzone
-            title={`Drag 'n drop your image here or click to upload`}
-            onImageDrop={onImageDrop}
-            icon={PhotoIcon}
-          />
-        ) : (
-          <UploadedImage
-            image={file}
-            removeImage={removeImage}
-            file={{ name: file.name, size: fileSize(file.size) }}
-          />
-        )} */}
+        {slug === "hairStyle" && (
+          !file ? (
+            <ImageDropzone
+              title={`Drag 'n drop your image here or click to upload`}
+              onImageDrop={onImageDrop}
+              icon={PhotoIcon}
+            />
+          ) : (
+            <UploadedImage
+              image={file}
+              removeImage={removeImage}
+              file={{ name: file.name, size: fileSize(file.size) }}
+            />
+          )
+        )}
 
-
-
-        {slug === 'freshink' ? 
+        {(slug === 'freshink' || slug === 'hairStyle') ? 
           <ImageOutput
             title={`AI-generated output goes here`}
             downloadOutputImage={downloadOutputImage}
@@ -442,9 +498,13 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
             loading={loading}
           />
           :
-          <video width="520" height="340" controls>
-            <source src="video.mp4" type="video/mp4"/>
-            <source src="video.ogg" type="video/ogg"/>
+          <video
+            src={outputVideo as string}
+            width="520"
+            height="340"
+            controls
+            className="h-full w-full object-cover"
+          >
             Your browser does not support the video tag.
           </video>
         }
