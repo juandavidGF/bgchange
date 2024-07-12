@@ -12,7 +12,7 @@ import { PhotoIcon, FaceSmileIcon, VideoCameraIcon } from "@heroicons/react/24/o
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu";
 import { ImageAreaProps } from "@/types";
-import { delay } from "@/utils";
+import { sleep } from "@/utils";
 
 type ErrorNotificationProps = {
   errorMessage: string;
@@ -562,7 +562,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     let status: string | null = null;
 
     do {
-      await delay(700);
+      await sleep(700);
       response = await fetch(`/api/app/${slug}/get`, {
         method: "POST",
         headers: {
