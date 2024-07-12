@@ -559,11 +559,10 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
 
     let response: any;
     let result: any;
-    let status: Status | null = null;
-
-    await delay(1_000);
+    let status: string | null = null;
 
     do {
+      await delay(700);
       response = await fetch(`/api/app/${slug}/get`, {
         method: "POST",
         headers: {
@@ -571,10 +570,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
         },
         body: JSON.stringify({ id }),
       });
-
       result = await response.json();
-      
-      // console.log({result});
       
       if (result.error) {
         setError(result.error);
@@ -582,11 +578,12 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
         return;
       }
 
-      const {status} = result.state;
-      console.log('page status', status);
+      status = result.state.status;
 
-      await delay(500);
-    } while (status === 'succeeded');
+      console.log({status});
+
+      
+    } while (status !== 'succeeded');
 
     if(model.output.video) {
       const videox = result.state.output[0];
