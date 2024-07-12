@@ -8,7 +8,7 @@ import { ThreeDots } from "react-loader-spinner";
 import { FaTrashAlt } from "react-icons/fa";
 import { FaDownload } from "react-icons/fa";
 import { XCircleIcon } from "@heroicons/react/20/solid";
-import { PhotoIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, FaceSmileIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu";
 import { ImageAreaProps } from "@/types";
@@ -32,6 +32,15 @@ type UploadedImageProps = {
   };
 };
 
+type UploadedVideoProps = {
+  video: File;
+  removeVideo(): void;
+  file: {
+    name: string;
+    size: string;
+  };
+};
+
 type ImageOutputProps = ImageAreaProps & {
   loading: boolean;
   outputImage: string | null;
@@ -44,7 +53,12 @@ const acceptedFileTypes = {
   "image/jpeg": [".jpeg", ".jpg", ".png"],
 };
 
+const acceptedVideoTypes = {
+  "video/*": [".jpeg", ".jpg", ".png"],
+};
+
 const maxFileSize = 5 * 1024 * 1024; // 5MB
+const maxVideoSize = 100 * 1024 * 1024; // 100MB
 
 /**
  * Display an error notification
@@ -171,7 +185,7 @@ function ImageOutput(props: ImageOutputProps) {
  */
 function UploadedImage({ file, image, removeImage }: UploadedImageProps) {
   return (
-    <section className="relative min-h-[206px] w-full">
+    <section className="relative min-h-[206px] w-full m-3">
       <button className="relative block h-full w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
         <img
           src={URL.createObjectURL(image)}
@@ -181,8 +195,36 @@ function UploadedImage({ file, image, removeImage }: UploadedImageProps) {
       </button>
 
       <button
-        className="group absolute right-1 top-1 rounded bg-yellow-500 p-2 text-black"
+        className="group absolute right-1 top-1 rounded bg-yellow-500 p-2 text-black z-10"
         onClick={removeImage}
+      >
+        <FaTrashAlt className="h-4 w-4 duration-300 group-hover:scale-110" />
+      </button>
+
+      <div className="text-md absolute left-0 top-0 bg-opacity-50 p-2 pl-3.5 text-white">
+        {file.name} ({file.size})
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Display the uploaded image
+ * @param {UploadedVideoProps} props The component props
+ */
+function UploadedVideo({ file, video, removeVideo }: UploadedVideoProps) {
+  return (
+    <section className="relative min-h-[206px] w-full">
+      <button className="relative block h-full w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+        <video
+          src={URL.createObjectURL(video)}
+          className="h-full w-full object-cover"
+        />
+      </button>
+
+      <button
+        className="group absolute right-1 top-1 rounded bg-yellow-500 p-2 text-black z-10"
+        onClick={removeVideo}
       >
         <FaTrashAlt className="h-4 w-4 duration-300 group-hover:scale-110" />
       </button>
@@ -229,6 +271,43 @@ function ImageDropzone(
   );
 }
 
+/**
+ * Display the image dropzone
+ * @param {ImageAreaProps} props The component props
+ */
+function VideoDropzone(
+  props: ImageAreaProps & {
+    onVideoDrop(acceptedFiles: File[], rejectedFiles: FileRejection[]): void;
+  }
+) {
+  return (
+    <Dropzone
+      onDrop={props.onVideoDrop}
+      accept={{
+        "video/*": [".mp4"],
+      }}
+      maxSize={maxVideoSize}
+      multiple={false}
+    >
+      {({ getRootProps, getInputProps }) => (
+        <>
+          <input {...getInputProps()} />
+          <button
+            {...getRootProps()}
+            type="button"
+            className="relative block min-h-[206px] w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          >
+            <props.icon className="mx-auto h-12 w-12 text-gray-400" />
+            <span className="mt-2 block text-sm font-semibold text-gray-300">
+              {props.title}
+            </span>
+          </button>
+        </>
+      )}
+    </Dropzone>
+  );
+}
+
 function PageNotFound() {
   return (<div className="w-full h-screen text-white flex justify-center items-center">
     <div className="mx-auto ">
@@ -237,11 +316,55 @@ function PageNotFound() {
   </div>)
 }
 
-function layout({slug}: {slug: string}) {
-  let model = {}
+interface ModelInput {
+  prompt: boolean;
+  image: boolean;
+  video: boolean;
+  select: boolean;
+}
+
+interface ModelOutput {
+  image: boolean;
+  video: boolean;
+}
+
+interface Model {
+  input: ModelInput;
+  output: ModelOutput;
+}
+
+function layout({slug}: {slug: string}): { model: Model } {
+  let model: Model = {
+    input: {
+      prompt: false,
+      image: false,
+      video: false,
+      select: false,
+    },
+    output: {
+      image: false,
+      video: false,
+    }
+  }
 
   switch(slug) {
-    case "freshlink":
+    case "createVideo":
+      model.input.prompt = model.output.video = true;
+      break;
+    case "upscaler":
+      model.input.image 
+        = model.output.image = true;
+      break;
+    case "hairStyle":
+      model.input.image 
+        = model.output.image 
+        = model.input.prompt
+        = true;
+      break;
+    case "livePortrait":
+      model.input.image = true;
+      model.input.video = true;
+      model.output.video = true;
       break;
     default:
       break;
@@ -250,18 +373,19 @@ function layout({slug}: {slug: string}) {
   return {model};
 }
 
-type Slug = "createVideo" | "freshink" | "hairStyle";
+type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait";
 type Status = "successful" | "failed" | "canceled";
 /**
  * Display the home page
  */
 export default function HomePage({ params }: { params: { slug: Slug } }) {
-
-
+  
   const slug = params.slug;
   if(slug !== "freshink" 
-    && slug !== "createVideo" 
+    && slug !== "createVideo"
+    && slug !== "upscaler"
     && slug !== "hairStyle"
+    && slug !== "livePortrait"
   ) return <PageNotFound />;
   
   const {model} = layout({slug});
@@ -270,11 +394,13 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [outputVideo, setOutputVideo] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
+  const [base64Video, setBase64Video] = useState<string | null>(null);
   const [source, setSource] = useState<string>(sources[0]);
   const [prompt, setPrompt] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>("");
   const [file, setFile] = useState<File | null>(null);
+  const [video, setVideo] = useState<File | null>(null);
 
   /**
    * Handle the image drop event
@@ -289,7 +415,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     // Check if any of the uploaded files are not valid
     if (rejectedFiles.length > 0) {
       console.info(rejectedFiles);
-      setError("Please upload a PNG or JPEG image less than 5MB.");
+      setError(`Please upload a PNG or JPEG image less than ${maxFileSize}MB.`);
       return;
     }
 
@@ -303,6 +429,27 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     convertImageToBase64(acceptedFiles[0]);
   }
 
+  function onVideoDrop(
+    acceptedFiles: File[],
+    rejectedFiles: FileRejection[]
+  ): void {
+    // Check if any of the uploaded files are not valid
+    if (rejectedFiles.length > 0) {
+      console.info(rejectedFiles);
+      setError(`Please upload a MP4 video less than ${maxVideoSize}MB.`);
+      return;
+    }
+
+    removeVideo();
+
+    console.info(acceptedFiles);
+    setError("");
+    setVideo(acceptedFiles[0]);
+
+    // Convert to base64
+    convertVideoToBase64(acceptedFiles[0]);
+  }
+
   /**
    * Convert the image to base64
    * @param {File} file The file to convert
@@ -314,6 +461,15 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     reader.onload = () => {
       const binaryStr = reader.result as string;
       setBase64Image(binaryStr);
+    };
+  }
+
+  function convertVideoToBase64(file: File): void {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const binaryStr = reader.result as string;
+      setBase64Video(binaryStr);
     };
   }
 
@@ -344,6 +500,15 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
   }
 
   /**
+   * Remove the uploaded video
+   * @returns void
+   */
+  function removeVideo(): void {
+    setVideo(null);
+    setOutputVideo(null);
+  }
+
+  /**
    * Download the output image
    * @returns void
    */
@@ -356,32 +521,41 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
    * @returns {Promise<void>}
    */
   async function submitImage({slug}: {slug: Slug}): Promise<void> {
-    if (!prompt) {
-      setError("Please upload a a prompt.");
-      return;
+    const params: any = { prompt, image: base64Image, video: base64Video }
+
+    for (const [key, value] of Object.entries(model.input)) {
+      if (value) {
+        if (params[key]) {
+          console.log('Ok', key);
+        } else {
+          console.log('alert', key, params[key]);
+          setError(`Must fill the field ${key}`);
+          return; // Exit the function early
+        }
+      }
     }
 
     setLoading(true);
 
+    // console.log({params});
 
-    // const response = await fetch(`/api/app/${slug}`, {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify({ prompt }),
-    // });
 
-    // const result = await response.json();
-    // console.log(result);
 
-    // if (result.error) {
-    //   setError(result.error);
-    //   setLoading(false);
-    //   return;
-    // }
+    const genA = await fetch(`/api/app/${slug}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    });
 
-    const id = "mv5ewyeka9rgg0cgf7jv2z6yyr";
+    const {id} = await genA.json();
+
+    if (id.error) {
+      setError(id.error);
+      setLoading(false);
+      return;
+    }
 
     let response: any;
     let result: any;
@@ -409,18 +583,20 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
       }
 
       const {status} = result.state;
-      console.log({status});
+      console.log('page status', status);
 
       await delay(500);
-    } while (status === 'successful');
+    } while (status === 'succeeded');
 
-    if(slug === 'createVideo') {
-      setOutputVideo(result.state.output.upscale_video);
-      setLoading(false);
+    if(model.output.video) {
+      const videox = result.state.output[0];
+      console.log({videox})
+      setOutputVideo(videox);
       return;
-    };
+    } else if(model.output.image) {
+      setOutputImage(result.output[0]);
+    }
 
-    setOutputImage(result.output[0]);
     setLoading(false);
   }
 
@@ -429,86 +605,113 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
       {error ? <ErrorNotification errorMessage={error} /> : null}
       <ActionPanel isLoading={loading} submitImage={() => submitImage({slug})} />
 
-      <section className="mx-4 mt-9 flex w-fit flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
-        {(slug === 'freshink' || slug === 'createVideo' || slug === 'hairStyle') && <div className="w-80">
-            <label className="block text-sm font-medium leading-6 text-gray-300">
-              Prompt,
-              <br/>
-              {slug === 'freshink' ? 
-                ("describe the tatto you want to create")
-                  : slug === 'createVideo' 
-                    ? "describe the video you want to create"
-                    : "describe the hair style"
-              }
-            </label>
-            <textarea
-              className="mt-2 w-full border bg-slate-800 text-sm text-gray-300 leading-6 text-left pl-3 py-1 rounded-md"
-              placeholder={
-                slug === 'freshink' ? 
-                  ("A fresh ink TOK tattoo") 
-                    : slug === 'createVideo' 
-                      ? "bonfire, on the stone"
-                      : "a face with a bowlcut"
-                }
-              // type="text"
-              onChange={(e) => setPrompt(e.target.value)}
-            />
-          </div>
-        }
-        {(slug !== 'freshink' 
-        && slug !== 'createVideo'
-        && slug !== 'hairStyle' ) && <SelectMenu
-            label="Light Source"
-            options={sources}
-            selected={source}
-            onChange={setSource}
-          />
-        }
-        {/* <SelectMenu
-          label="Room type"
-          options={rooms}
-          selected={room}
-          onChange={setRoom}
-        /> */}
-      </section>
 
-      <section className="mt-10 grid flex-1 gap-6 px-4 lg:px-6 xl:grid-cols-2 xl:gap-8 xl:px-8">
-        {slug === "hairStyle" && (
-          !file ? (
-            <ImageDropzone
-              title={`Drag 'n drop your image here or click to upload`}
-              onImageDrop={onImageDrop}
-              icon={PhotoIcon}
-            />
-          ) : (
-            <UploadedImage
-              image={file}
-              removeImage={removeImage}
-              file={{ name: file.name, size: fileSize(file.size) }}
-            />
-          )
-        )}
+      <div className="flex flex-row">
+        <div className="flex flex-col w-1/2">
+          <h1 className="mx-auto">Input</h1>
+          <section className="mx-4 mt-9 flex flex-col space-y-8 lg:mx-6 gap-4 lg:space-x-8 lg:space-y-0 xl:mx-8">
+            {model.input.prompt && <div className="w-80">
+                <label className="block text-sm font-medium leading-6 text-gray-300">
+                  Prompt,
+                  <br/>
+                  {slug === 'freshink' ? 
+                    ("describe the tatto you want to create")
+                      : slug === 'createVideo'
+                        ? "describe the video you want to create"
+                        : "describe the hair style"
+                  }
+                </label>
+                <textarea
+                  className="mt-2 w-full border bg-slate-800 text-sm text-gray-300 leading-6 text-left pl-3 py-1 rounded-md"
+                  placeholder={
+                    slug === 'freshink' ? 
+                      ("A fresh ink TOK tattoo") 
+                        : slug === 'createVideo' 
+                          ? "bonfire, on the stone"
+                          : "a face with a bowlcut"
+                    }
+                  onChange={(e) => setPrompt(e.target.value)}
+                />
+              </div>
+            }
+            {model.input.select && <SelectMenu
+                label="Light Source"
+                options={sources}
+                selected={source}
+                onChange={setSource}
+              />
+            }
+            {/* <SelectMenu
+              label="Room type"
+              options={rooms}
+              selected={room}
+              onChange={setRoom}
+            /> */}
 
-        {(slug === 'freshink' || slug === 'hairStyle') ? 
-          <ImageOutput
-            title={`AI-generated output goes here`}
-            downloadOutputImage={downloadOutputImage}
-            outputImage={outputImage}
-            icon={SparklesIcon}
-            loading={loading}
-          />
-          :
-          <video
-            src={outputVideo as string}
-            width="520"
-            height="340"
-            controls
-            className="h-full w-full object-cover"
-          >
-            Your browser does not support the video tag.
-          </video>
-        }
-      </section>
+            {<div>
+              {model.input.image}
+            </div>}
+            {model.input.image && (
+              !file ? (
+                <ImageDropzone
+                  title={`Drag 'n drop your image here or click to upload`}
+                  onImageDrop={onImageDrop}
+                  icon={slug === 'hairStyle' ? FaceSmileIcon : PhotoIcon}
+                />
+              ) : (
+                <UploadedImage
+                  image={file}
+                  removeImage={removeImage}
+                  file={{ name: file.name, size: fileSize(file.size) }}
+                />
+              )
+            )}
+
+            {model.input.video && (
+              !video ? (
+                <VideoDropzone
+                  title={`Drag 'n drop your video here or click to upload`}
+                  onVideoDrop={onVideoDrop}
+                  icon={VideoCameraIcon}
+                />
+              ) : (
+                <UploadedVideo
+                  video={video}
+                  removeVideo={removeVideo}
+                  file={{ name: video.name, size: fileSize(video.size) }}
+                />
+              )
+            )}
+          </section>
+        </div>
+
+        <div className="flex flex-col w-1/2">
+          <h1 className="mx-auto">Output</h1>
+          <section className="mx-4 mt-9 flex flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
+            {model.output.image && (
+              <ImageOutput
+                title={`AI-generated output goes here`}
+                downloadOutputImage={downloadOutputImage}
+                outputImage={outputImage}
+                icon={SparklesIcon}
+                loading={loading}
+              />
+            )}
+
+            {model.output.video && (
+              <video
+                src={outputVideo as string}
+                width="520"
+                height="340"
+                controls
+                className="h-full w-full object-cover"
+              >
+                Your browser does not support the video tag.
+              </video>
+            )}
+          </section>
+        </div>
+      </div>
     </main>
   );
 }

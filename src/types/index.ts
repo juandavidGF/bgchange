@@ -18,3 +18,5 @@ export type ImageAreaProps = {
     } & React.RefAttributes<SVGSVGElement>
   >;
 };
+
+export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait";

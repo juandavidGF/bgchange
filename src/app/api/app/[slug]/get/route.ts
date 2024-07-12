@@ -1,7 +1,6 @@
+import { Slug } from '@/types';
 import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
-
-type Slug = "createVideo" | "freshink";
 
 export async function POST(
   request: Request,
@@ -11,12 +10,15 @@ export async function POST(
     const req = await request.json();
 
     const slug = params.slug;
-    if(slug !== 'freshink' && slug !== 'createVideo') return NextResponse.json(
-      { error: `Something went wrong, api, slug ${slug} not allowed` },
-      { status: 500 }
-    );
+    // if(slug !== 'freshink' && slug !== 'createVideo') return NextResponse.json(
+    //   { error: `Something went wrong, api, slug ${slug} not allowed` },
+    //   { status: 500 }
+    // );
 
     const {id} = req;
+
+    console.log('get', {id})
+    
   
     if(!id) return NextResponse.json(
         { error: 'not id /api' },
@@ -32,7 +34,7 @@ export async function POST(
     console.log({state});
     return NextResponse.json({ state }, { status: 201 });
   } catch (error: any) {
-    console.error(error.message);
+    console.error("api/app/[]/get " + error.message);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
