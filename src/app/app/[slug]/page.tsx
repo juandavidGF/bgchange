@@ -219,6 +219,8 @@ function UploadedVideo({ file, video, removeVideo }: UploadedVideoProps) {
         <video
           src={URL.createObjectURL(video)}
           className="h-full w-full object-cover"
+          controls
+          autoPlay
         />
       </button>
 
@@ -374,7 +376,7 @@ function layout({slug}: {slug: string}): { model: Model } {
 }
 
 type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait";
-type Status = "successful" | "failed" | "canceled";
+type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
 /**
  * Display the home page
  */
@@ -559,10 +561,10 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
 
     let response: any;
     let result: any;
-    let status: string | null = null;
+    let status: Status | null = null;
 
     do {
-      await sleep(700);
+      await sleep(1_000);
       response = await fetch(`/api/app/${slug}/get`, {
         method: "POST",
         headers: {
@@ -583,10 +585,13 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
       console.log({status});
 
       
-    } while (status !== 'succeeded');
+    } while (status !== 'succeeded' && status !== 'failed');
+
+    if(status === 'failed') throw Error("status failed");
 
     if(model.output.video) {
-      const videox = result.state.output[0];
+      console.log({result});
+      const videox = result.state.output ? result.state.output[0] : null;
       console.log({videox})
       setOutputVideo(videox);
       return;
@@ -701,6 +706,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                 width="520"
                 height="340"
                 controls
+                autoPlay
                 className="h-full w-full object-cover"
               >
                 Your browser does not support the video tag.

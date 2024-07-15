@@ -71,14 +71,14 @@ export async function POST(
     if(!input) throw Error('api/app/[]/ input is not a object');
 
     console.log('xxx ->', {model, version , input});
-    // const output = await replicate.predictions.create({
-    //   version,
-    //   input,
-    // });
+    const output = await replicate.predictions.create({
+      version,
+      input,
+    });
 
-    const output = {
-      id: "87h588fapdrgg0cgmgftvtz87r"
-    };
+    // const output = {
+    //   id: "87h588fapdrgg0cgmgftvtz87r"
+    // };
 
 
     console.log({output});
