@@ -9,6 +9,8 @@ import { HomeIcon,
   FaceSmileIcon,
   CpuChipIcon,
   MicrophoneIcon,
+  SpeakerWaveIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
 import { NavItem } from '@/types';
 
@@ -23,4 +25,6 @@ export const navigation: Array<NavItem> = [
   { name: 'Create Video', href: '/app/createVideo', icon: VideoCameraIcon },
   { name: 'Hair Style', href: '/app/hairStyle', icon: FaceSmileIcon },
   { name: 'Live Portrait', href: '/app/livePortrait', icon: MicrophoneIcon },
+  { name: 'tts', href: '/on-device/tts', icon: SpeakerWaveIcon },
+  { name: 'Trip Planner', href: '/chat/trip', icon: PaperAirplaneIcon },
 ];
