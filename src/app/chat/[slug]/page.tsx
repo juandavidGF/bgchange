@@ -32,9 +32,9 @@ function ErrorNotification({ errorMessage }: ErrorNotificationProps) {
   );
 }
 
-type Slug = "dates" | "trip";
+type Slug = "dates" | "trip" | "viral";
 function isSlug(value: string): value is Slug {
-  return value === "dates" || value === "trip";
+  return value === "dates" || value === "trip" || value === "viral";
 }
 export default function Home({ params }: { params: { slug: Slug } }) {
   const [isValidSlug, setIsValidSlug] = useState<boolean>(false);

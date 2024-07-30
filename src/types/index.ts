@@ -11,6 +11,7 @@ export type NavItem = {
 
 export type ImageAreaProps = {
   title: string;
+  id?: number;
   icon: React.ForwardRefExoticComponent<
     Omit<React.SVGProps<SVGSVGElement>, 'ref'> & {
       title?: string | undefined;

@@ -1,4 +1,5 @@
-import { HomeIcon, 
+import { 
+  HomeIcon,
   BoltIcon, 
   BoltSlashIcon, 
   SunIcon, 
@@ -11,6 +12,7 @@ import { HomeIcon,
   MicrophoneIcon,
   SpeakerWaveIcon,
   PaperAirplaneIcon,
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 import { NavItem } from '@/types';
 
@@ -27,4 +29,5 @@ export const navigation: Array<NavItem> = [
   { name: 'Live Portrait', href: '/app/livePortrait', icon: MicrophoneIcon },
   { name: 'tts', href: '/on-device/tts', icon: SpeakerWaveIcon },
   { name: 'Trip Planner', href: '/chat/trip', icon: PaperAirplaneIcon },
+  { name: 'TryOn', href: '/app/tryon', icon: UserCircleIcon },
 ];

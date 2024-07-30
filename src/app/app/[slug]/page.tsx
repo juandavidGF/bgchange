@@ -320,7 +320,7 @@ function PageNotFound() {
 
 interface ModelInput {
   prompt: boolean;
-  image: boolean;
+  image: number;
   video: boolean;
   select: boolean;
 }
@@ -339,7 +339,7 @@ function layout({slug}: {slug: string}): { model: Model } {
   let model: Model = {
     input: {
       prompt: false,
-      image: false,
+      image: 0,
       video: false,
       select: false,
     },
@@ -354,19 +354,23 @@ function layout({slug}: {slug: string}): { model: Model } {
       model.input.prompt = model.output.video = true;
       break;
     case "upscaler":
-      model.input.image 
-        = model.output.image = true;
+      model.input.image = 1;
+      model.output.image = true;
       break;
     case "hairStyle":
-      model.input.image 
-        = model.output.image 
+      model.input.image = 1;
+      model.output.image 
         = model.input.prompt
         = true;
       break;
     case "livePortrait":
-      model.input.image = true;
+      model.input.image = 1;
       model.input.video = true;
       model.output.video = true;
+      break;
+    case "tryon":
+      model.input.image = 2;
+      model.output.image = true;
       break;
     default:
       break;
@@ -388,6 +392,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     && slug !== "upscaler"
     && slug !== "hairStyle"
     && slug !== "livePortrait"
+    && slug !== "tryon"
   ) return <PageNotFound />;
   
   const {model} = layout({slug});
@@ -649,25 +654,30 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
               selected={room}
               onChange={setRoom}
             /> */}
+            {/* {Array.from({ length: model.input.image }).map((_, index) => (
+              <div>
+                {index} -
+              </div>
+            ))} */}
 
-            {<div>
-              {model.input.image}
-            </div>}
-            {model.input.image && (
-              !file ? (
-                <ImageDropzone
-                  title={`Drag 'n drop your image here or click to upload`}
-                  onImageDrop={onImageDrop}
-                  icon={slug === 'hairStyle' ? FaceSmileIcon : PhotoIcon}
-                />
-              ) : (
-                <UploadedImage
-                  image={file}
-                  removeImage={removeImage}
-                  file={{ name: file.name, size: fileSize(file.size) }}
-                />
-              )
-            )}
+            {
+              Array.from({ length: model.input.image }).map((_, index) => (
+                !file ? (
+                  <ImageDropzone key={index}
+                    title={`Drag 'n drop your image here or click to upload`}
+                    onImageDrop={onImageDrop}
+                    icon={slug === 'hairStyle' ? FaceSmileIcon : PhotoIcon}
+                  />
+                ) : (
+                  <UploadedImage
+                    key={index}
+                    image={file}
+                    removeImage={removeImage}
+                    file={{ name: file.name, size: fileSize(file.size) }}
+                  />
+                )
+              ))
+            }
 
             {model.input.video && (
               !video ? (
@@ -699,7 +709,6 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                 loading={loading}
               />
             )}
-
             {model.output.video && (
               <video
                 src={outputVideo as string}
