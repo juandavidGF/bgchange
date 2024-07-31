@@ -2,7 +2,7 @@
 
 import Dropzone from "react-dropzone";
 import { saveAs } from "file-saver";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileRejection } from "react-dropzone";
 import { ThreeDots } from "react-loader-spinner";
 import { FaTrashAlt } from "react-icons/fa";
@@ -399,13 +399,12 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     config = configurations[slug as keyof typeof configurations]; 
     console.log(config);
   } else {
-    console.error(`Invalid slug: ${slug}`);
+    console.error(`Invalid slug (no in config): ${slug}`);
     // throw Error(`Invalid slug: ${slug}`);
   }
   
   const {model} = layout({slug});
   
-  const [app, setApp] = useState<string>(slug);
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [base64Images, setBase64Images] = useState<string[]>([]);
   const [outputVideo, setOutputVideo] = useState<string | null>(null);
@@ -416,7 +415,8 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
   const [error, setError] = useState<string | null>("");
   const [files, setFiles] = useState<File[]>([]);
   const [video, setVideo] = useState<File | null>(null);
-  const [contImg, setContImg] = useState(0);
+
+  let contImg = 0;
 
   /**
    * Handle the image drop event
@@ -630,8 +630,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     <main className="flex min-h-screen flex-col py-10 lg:pl-72">
       {error ? <ErrorNotification errorMessage={error} /> : null}
       <ActionPanel isLoading={loading} submitImage={() => submitImage({slug})} />
-
-
+      
       <div className="flex flex-row">
         <div className="flex flex-col w-1/2">
           <h1 className="mx-auto">Input</h1>
@@ -641,8 +640,9 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                 const { type } = item;
                 switch (type) {
                   case 'image':
-                    return (
-                      !files[contImg] ? (
+                    const Img = !files[contImg] ? 
+                      <div>
+                        <div>{contImg}</div>
                         <ImageDropzone 
                           key={index}
                           id={contImg}
@@ -650,15 +650,20 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                           onImageDrop={onImageDrop}
                           icon={slug === 'hairStyle' ? FaceSmileIcon : PhotoIcon}
                         />
-                      ) : (
+                      </div>
+                      :
+                      <div>
+                        <div>{contImg}</div>
                         <UploadedImage
                           key={contImg}
                           image={files[contImg]}
                           removeImage={() => removeImage(contImg)}
                           file={{ name: files[contImg].name, size: fileSize(files[contImg].size) }}
                         />
-                      )
-                    );
+                      </div>
+                    
+                    contImg += 1;
+                    return Img;
                   case 'prompt':
                     return(
                       <Prompt
