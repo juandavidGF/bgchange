@@ -20,4 +20,4 @@ export type ImageAreaProps = {
   >;
 };
 
-export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait";
+export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | "tryon";

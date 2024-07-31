@@ -13,7 +13,7 @@ export async function POST(
 ) {
   const req = await request.json();
 
-  console.log({req});
+  // console.log({req});
   
   const slug = params.slug;
   if(slug !== 'freshink' 
@@ -21,6 +21,7 @@ export async function POST(
     && slug !== "hairStyle"
     && slug !== "livePortrait"
     && slug !== "upscaler"
+    && slug !== 'tryon'
   ) return NextResponse.json(
     { error: `Something went wrong, api, slug ${slug} not allowed` },
     { status: 500 }
@@ -212,8 +213,12 @@ function getModel({slug}: {slug: string}) {
         }
       }
       break;
+    // case 'tryon':
+
+    //   break;
     default:
-      throw Error('case not found');
+      throw Error('slug not found');
+      break;
   }
 
   return {sheme};

@@ -13,6 +13,8 @@ import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu";
 import { ImageAreaProps } from "@/types";
 import { sleep } from "@/utils";
+import { configurations } from "@/common/configuration";
+import { Prompt } from "@/components/prompt";
 
 type ErrorNotificationProps = {
   errorMessage: string;
@@ -244,12 +246,12 @@ function UploadedVideo({ file, video, removeVideo }: UploadedVideoProps) {
  */
 function ImageDropzone(
   props: ImageAreaProps & {
-    onImageDrop(acceptedFiles: File[], rejectedFiles: FileRejection[]): void;
+    onImageDrop(acceptedFiles: File[], rejectedFiles: FileRejection[], id: number): void;
   }
 ) {
   return (
     <Dropzone
-      onDrop={props.onImageDrop}
+      onDrop={(acceptedFiles, rejectedFiles) => props.onImageDrop(acceptedFiles, rejectedFiles, props.id as number)}
       accept={acceptedFileTypes}
       maxSize={maxFileSize}
       multiple={false}
@@ -368,10 +370,6 @@ function layout({slug}: {slug: string}): { model: Model } {
       model.input.video = true;
       model.output.video = true;
       break;
-    case "tryon":
-      model.input.image = 2;
-      model.output.image = true;
-      break;
     default:
       break;
   }
@@ -379,7 +377,7 @@ function layout({slug}: {slug: string}): { model: Model } {
   return {model};
 }
 
-type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait";
+type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | 'tryon';
 type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
 /**
  * Display the home page
@@ -387,27 +385,38 @@ type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
 export default function HomePage({ params }: { params: { slug: Slug } }) {
   
   const slug = params.slug;
-  if(slug !== "freshink" 
+  if(slug !== "freshink"
     && slug !== "createVideo"
     && slug !== "upscaler"
     && slug !== "hairStyle"
     && slug !== "livePortrait"
     && slug !== "tryon"
   ) return <PageNotFound />;
+
+  let config;
+
+  if (slug in configurations) {
+    config = configurations[slug as keyof typeof configurations]; 
+    console.log(config);
+  } else {
+    console.error(`Invalid slug: ${slug}`);
+    // throw Error(`Invalid slug: ${slug}`);
+  }
   
   const {model} = layout({slug});
   
   const [app, setApp] = useState<string>(slug);
   const [outputImage, setOutputImage] = useState<string | null>(null);
+  const [base64Images, setBase64Images] = useState<string[]>([]);
   const [outputVideo, setOutputVideo] = useState<string | null>(null);
-  const [base64Image, setBase64Image] = useState<string | null>(null);
   const [base64Video, setBase64Video] = useState<string | null>(null);
   const [source, setSource] = useState<string>(sources[0]);
   const [prompt, setPrompt] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [video, setVideo] = useState<File | null>(null);
+  const [contImg, setContImg] = useState(0);
 
   /**
    * Handle the image drop event
@@ -417,7 +426,8 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
    */
   function onImageDrop(
     acceptedFiles: File[],
-    rejectedFiles: FileRejection[]
+    rejectedFiles: FileRejection[],
+    id: number,
   ): void {
     // Check if any of the uploaded files are not valid
     if (rejectedFiles.length > 0) {
@@ -430,10 +440,10 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
 
     console.info(acceptedFiles);
     setError("");
-    setFile(acceptedFiles[0]);
+    setFiles((prevFiles) => ({ ...prevFiles, [id]: acceptedFiles[0] }));
 
     // Convert to base64
-    convertImageToBase64(acceptedFiles[0]);
+    convertImageToBase64(acceptedFiles[0], id);
   }
 
   function onVideoDrop(
@@ -462,12 +472,12 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
    * @param {File} file The file to convert
    * @returns void
    */
-  function convertImageToBase64(file: File): void {
+  function convertImageToBase64(file: File, id: number): void {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
       const binaryStr = reader.result as string;
-      setBase64Image(binaryStr);
+      setBase64Images(prevImg => ({...prevImg, [id]: binaryStr}));
     };
   }
 
@@ -501,8 +511,8 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
    * Remove the uploaded image
    * @returns void
    */
-  function removeImage(): void {
-    setFile(null);
+  function removeImage(id?: number): void {
+    // setFiles((prevFiles) => ({ ...prevFiles, [id]: null }));
     setOutputImage(null);
   }
 
@@ -528,25 +538,34 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
    * @returns {Promise<void>}
    */
   async function submitImage({slug}: {slug: Slug}): Promise<void> {
-    const params: any = { prompt, image: base64Image, video: base64Video }
+    const params: any = { prompt, image: base64Images, video: base64Video }
 
     for (const [key, value] of Object.entries(model.input)) {
+      console.log({key, value})
       if (value) {
-        if (params[key]) {
-          console.log('Ok', key);
+        if(typeof value === 'number') {
+          for(let i= 0; i < value ;i++) {
+            if(params[key][i]) { 
+              console.log('Ok', {key, i});
+            } else {
+              console.log('alert', key, params[key]);
+              setError(`Must fill the field ${key} ${value}`);
+              return; // Exit the function early
+            }
+          }
         } else {
-          console.log('alert', key, params[key]);
-          setError(`Must fill the field ${key}`);
-          return; // Exit the function early
+          if (params[key]) {
+            console.log('Ok', key);
+          } else {
+            console.log('alert', key, params[key]);
+            setError(`Must fill the field ${key}`);
+            return; // Exit the function early
+          }
         }
       }
     }
 
     setLoading(true);
-
-    // console.log({params});
-
-
 
     const genA = await fetch(`/api/app/${slug}`, {
       method: "POST",
@@ -617,7 +636,44 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
         <div className="flex flex-col w-1/2">
           <h1 className="mx-auto">Input</h1>
           <section className="mx-4 mt-9 flex flex-col space-y-8 lg:mx-6 gap-4 lg:space-x-8 lg:space-y-0 xl:mx-8">
-            {model.input.prompt && <div className="w-80">
+            {config?.inputs.map((item, index) => {
+              if (('show' in item) && item['show']) {
+                const { type } = item;
+                switch (type) {
+                  case 'image':
+                    return (
+                      !files[contImg] ? (
+                        <ImageDropzone 
+                          key={index}
+                          id={contImg}
+                          title={`Drag 'n drop your image here or click to upload`}
+                          onImageDrop={onImageDrop}
+                          icon={slug === 'hairStyle' ? FaceSmileIcon : PhotoIcon}
+                        />
+                      ) : (
+                        <UploadedImage
+                          key={contImg}
+                          image={files[contImg]}
+                          removeImage={() => removeImage(contImg)}
+                          file={{ name: files[contImg].name, size: fileSize(files[contImg].size) }}
+                        />
+                      )
+                    );
+                  case 'prompt':
+                    return(
+                      <Prompt
+                        label={item.label as string}
+                        placeholder={item.placeholder as string} 
+                        placeholderTextArea={item.value as string}
+                        setPrompt={setPrompt}
+                      />)
+                  default:
+                    return <div>no supported</div>;
+                }
+              }
+            })}
+            {model.input.prompt && 
+              <div className="w-80">
                 <label className="block text-sm font-medium leading-6 text-gray-300">
                   Prompt,
                   <br/>
@@ -662,8 +718,10 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
 
             {
               Array.from({ length: model.input.image }).map((_, index) => (
-                !file ? (
-                  <ImageDropzone key={index}
+                !files[index] ? (
+                  <ImageDropzone 
+                    key={index}
+                    id={index}
                     title={`Drag 'n drop your image here or click to upload`}
                     onImageDrop={onImageDrop}
                     icon={slug === 'hairStyle' ? FaceSmileIcon : PhotoIcon}
@@ -671,9 +729,9 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                 ) : (
                   <UploadedImage
                     key={index}
-                    image={file}
-                    removeImage={removeImage}
-                    file={{ name: file.name, size: fileSize(file.size) }}
+                    image={files[index]}
+                    removeImage={() => removeImage(index)}
+                    file={{ name: files[index].name, size: fileSize(files[index].size) }}
                   />
                 )
               ))
