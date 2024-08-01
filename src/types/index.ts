@@ -33,7 +33,7 @@ export type InputItem = {
   [key: string]: any;
 };
 
-type OutputItem = {
+export type OutputItem = {
   type: string;
   placeholder?: string;
   key: string;
@@ -44,7 +44,7 @@ type Configuration = {
   client?: string;
   path?: string;
   endpoint?: string;
-  model?: string;
+  model?: `${string}/${string}` | `${string}/${string}:${string}`;
   inputs: InputItem[];
   outputs?: OutputItem[];
   [key: string]: any;

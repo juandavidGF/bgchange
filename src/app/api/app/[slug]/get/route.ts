@@ -17,10 +17,9 @@ export async function POST(
 
     const {id} = req;
 
-    console.log('get', {id})
-    
+    console.log('[slug]/get', {id});
   
-    if(!id) return NextResponse.json(
+    if (!id) return NextResponse.json(
         { error: 'not id /api' },
         { status: 500 }
       );

@@ -30,4 +30,5 @@ export const navigation: Array<NavItem> = [
   { name: 'tts', href: '/on-device/tts', icon: SpeakerWaveIcon },
   { name: 'Trip Planner', href: '/chat/trip', icon: PaperAirplaneIcon },
   { name: 'TryOn', href: '/app/tryon', icon: UserCircleIcon },
+  { name: 'Sam2', href: '/app/sam2', icon: UserCircleIcon },
 ];

@@ -19,17 +19,6 @@ export async function POST(
   // console.log({req});
   
   const slug = params.slug;
-  if(slug !== 'freshink' 
-    && slug !== 'createVideo'
-    && slug !== "hairStyle"
-    && slug !== "livePortrait"
-    && slug !== "upscaler"
-    && slug !== 'tryon'
-  ) return NextResponse.json(
-    { error: `Something went wrong, api, slug ${slug} not allowed` },
-    { status: 500 }
-  );
-
 
   // return NextResponse.json(
   //   { status: 201 }
@@ -42,22 +31,92 @@ export async function POST(
 
       let indImg = 0;
 
-      // get a new array, with the corresponding values,
-      // image 1, 2 inserted, and promp
-      // if show false, the value of the defalut one
-      const params = config.inputs.map((item, index) => {
-        if(item.show) {
-          if(item.type === 'image') {
-            const newImg = req.image[indImg];
-            indImg++;
-            return indImg;
-          } else if (item.type === 'prompt') {
-            return req.prompt;
-          }
-        }
-      });
+      if (config.type === 'replicate') {
+        const replicate = new Replicate({
+          auth: REPLICATE_API_TOKEN,
+        });
 
-      if(config.type === 'gradio') {
+        const model: 
+          `${string}/${string}` | `${string}/${string}:${string}` | undefined = config.model;
+
+        if(!model || typeof model !== "string") throw Error(`not model found or format issue ${model}`);
+
+        const version: string | undefined = config.version;
+        if(!version) throw Error('api/app/[]/ version not found');
+
+
+        // I need to check how to convert array of object, to object,
+
+        const input: { [key: string]: any } = {};
+        
+        // TODO -> Make the extraction of the req automatic, define in the fronted, the name related with the config object ...
+
+        let indxImage = 0;
+        config.inputs.forEach(item => {
+          if (item.key) {
+            if(item.show) {
+              const {type} = item;
+              if (type === 'image') {
+                const {image} = req;
+                if(!image) return NextResponse.json(
+                  { error: 'not image /api' },
+                  { status: 500 }
+                );
+                console.log({image})
+                input[item.key] = image[indxImage];
+              } else if (type === 'prompt') {
+                const {prompt} = req;
+                if(!prompt) return NextResponse.json(
+                  { error: 'not image /api' },
+                  { status: 500 }
+                );
+                input[item.key] = prompt;
+              }
+            } else {
+              input[item.key] = item.value;
+            }
+          }
+        });
+
+        if(!input) throw Error('api/app/[]/ input is not a object');
+
+        console.log('xxx ->', {model, version , input});
+        // const output = await replicate.predictions.create({
+        //   version,
+        //   input,
+        // });
+
+        const output = {
+          id: "nbjvdfmzwdrgg0ch1tn8dee3j8"
+        };
+
+        console.log(`api/[${slug}]`, {output});
+        if (!output) {
+          console.log('Something went wrong');
+          return NextResponse.json(
+            { error: 'Something went wrong' },
+            { status: 500 }
+          );
+        }
+        
+        return NextResponse.json(
+          output,
+          { status: 201 }
+        );
+      } else if (config.type === 'gradio') {
+        const params = config.inputs.map(item => {
+          if(item.show) {
+            if(item.type === 'image') {
+              const newImg = req.image[indImg];
+              indImg++;
+              return newImg;
+            } else if (item.type === 'prompt') {
+              return req.prompt;
+            } else {
+              return item.value;
+            }
+          }
+        });
         const app = await Client.connect(config.client as string);
         const output = await app.predict("/tryon", params)
 
@@ -77,6 +136,17 @@ export async function POST(
 
         
       }
+    } else {
+      if(slug !== 'freshink' 
+        && slug !== 'createVideo'
+        && slug !== "hairStyle"
+        && slug !== "livePortrait"
+        && slug !== "upscaler"
+        && slug !== 'tryon'
+      ) return NextResponse.json(
+        { error: `Something went wrong, api, slug ${slug} not found` },
+        { status: 500 }
+      );
     }
 
     const {sheme} = getModel({slug});

@@ -11,7 +11,7 @@ import { XCircleIcon } from "@heroicons/react/20/solid";
 import { PhotoIcon, FaceSmileIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu";
-import { Configurations, ImageAreaProps, InputItem } from "@/types";
+import { Configurations, ImageAreaProps, InputItem, OutputItem } from "@/types";
 import { sleep } from "@/utils";
 import { configurations } from "@/common/configuration";
 import { Prompt } from "@/components/prompt";
@@ -385,13 +385,6 @@ type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
 export default function HomePage({ params }: { params: { slug: Slug } }) {
   
   const slug = params.slug;
-  if(slug !== "freshink"
-    && slug !== "createVideo"
-    && slug !== "upscaler"
-    && slug !== "hairStyle"
-    && slug !== "livePortrait"
-    && slug !== "tryon"
-  ) return <PageNotFound />;
 
   let config: Configurations | null;
 
@@ -401,7 +394,13 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
   } else {
     config = null;
     console.error(`Invalid slug (no in config): ${slug}`);
-    // throw Error(`Invalid slug: ${slug}`);
+    if(slug !== "freshink"
+      && slug !== "createVideo"
+      && slug !== "upscaler"
+      && slug !== "hairStyle"
+      && slug !== "livePortrait"
+      && slug !== "tryon"
+    ) return <PageNotFound />;
   }
   
   const {model} = layout({slug});
@@ -539,11 +538,9 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
    * @returns {Promise<void>}
    */
   async function submitImage({slug}: {slug: Slug}): Promise<void> {
-    const params: any = { prompt, image: base64Images, video: base64Video }
-
-    // console.log({params});
+    const params: any = { prompt, image: base64Images, video: base64Video };
     
-    if(config?.inputs) {
+    if (config?.inputs) {
       let imgI = 0;
       for (const [key, value] of Object.entries(config.inputs)) {
         if (value.show) {
@@ -566,9 +563,9 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     
     for (const [key, value] of Object.entries(model.input)) {
       if (value) {
-        if(typeof value === 'number') {
+        if (typeof value === 'number') {
           for(let i= 0; i < value ;i++) {
-            if(params[key][i]) { 
+            if (params[key][i]) { 
               console.log('Ok', {key, i});
             } else {
               console.log('alert', key, params[key]);
@@ -634,14 +631,26 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
       
     } while (status !== 'succeeded' && status !== 'failed');
 
-    if(status === 'failed') throw Error("status failed");
+    if (status === 'failed') throw Error("status failed");
+
+    
+
+    config?.outputs.forEach((item: OutputItem) => {
+      const {type} = item;
+      if (type === 'image') {
+        const key = config?.outputs[0].key;
+        setOutputImage(result.state.output[key]);
+      } else if (type === 'video') {
+        const key = config?.outputs[0].key;
+        setOutputVideo(result.state.output[key]);
+      }
+    })
 
     if(model.output.video) {
       console.log({result});
       const videox = result.state.output ? result.state.output[0] : null;
       console.log({videox})
       setOutputVideo(videox);
-      return;
     } else if(model.output.image) {
       setOutputImage(result.output[0]);
     }
@@ -782,6 +791,34 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
         <div className="flex flex-col w-1/2">
           <h1 className="mx-auto">Output</h1>
           <section className="mx-4 mt-9 flex flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
+
+            {config?.outputs.map((item: OutputItem, index: number) => {
+              if (('show' in item) && item['show']) {
+                if(item.type === 'image') { 
+                  return <ImageOutput
+                    title={item.placeholder as string}
+                    downloadOutputImage={downloadOutputImage}
+                    outputImage={outputImage}
+                    icon={SparklesIcon}
+                    loading={loading}
+                  />
+                } else if (item.type === 'vide') {
+                  return <video
+                    src={outputVideo as string}
+                    width="520"
+                    height="340"
+                    controls
+                    autoPlay
+                    className="h-full w-full object-cover"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                }
+              }
+            })}
+          
+
+
             {model.output.image && (
               <ImageOutput
                 title={`AI-generated output goes here`}
