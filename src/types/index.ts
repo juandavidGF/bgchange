@@ -22,7 +22,7 @@ export type ImageAreaProps = {
 
 export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | "tryon";
 
-type InputItem = {
+export type InputItem = {
   type: string;
   placeholder?: string;
   name?: string;
