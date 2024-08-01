@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
 import { Slug } from '@/types';
+import { Configurations } from "@/types";
+import { configurations } from '@/common/configuration';
+import { Client } from "@gradio/client";
 
 type Status = "successful" | "failed" | "canceled";
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
-if(!REPLICATE_API_TOKEN) throw Error(`not REPLICATE_API_TOKEN ${REPLICATE_API_TOKEN}`);
+if (!REPLICATE_API_TOKEN) throw Error(`not REPLICATE_API_TOKEN ${REPLICATE_API_TOKEN}`);
 
 export async function POST(
   request: Request,
@@ -17,7 +20,7 @@ export async function POST(
   
   const slug = params.slug;
   if(slug !== 'freshink' 
-    && slug !== 'createVideo' 
+    && slug !== 'createVideo'
     && slug !== "hairStyle"
     && slug !== "livePortrait"
     && slug !== "upscaler"
@@ -27,7 +30,55 @@ export async function POST(
     { status: 500 }
   );
 
+
+  // return NextResponse.json(
+  //   { status: 201 }
+  // );
+  
+
   try {
+    if(configurations[slug]) {
+      const config = configurations[slug];
+
+      let indImg = 0;
+
+      // get a new array, with the corresponding values,
+      // image 1, 2 inserted, and promp
+      // if show false, the value of the defalut one
+      const params = config.inputs.map((item, index) => {
+        if(item.show) {
+          if(item.type === 'image') {
+            const newImg = req.image[indImg];
+            indImg++;
+            return indImg;
+          } else if (item.type === 'prompt') {
+            return req.prompt;
+          }
+        }
+      });
+
+      if(config.type === 'gradio') {
+        const app = await Client.connect(config.client as string);
+        const output = await app.predict("/tryon", params)
+
+        console.log({output});
+        if (!output) {
+          console.log('Something went wrong');
+          return NextResponse.json(
+            { error: 'Something went wrong' },
+            { status: 500 }
+          );
+        }
+        
+        return NextResponse.json(
+          output.data,
+          { status: 201 }
+        );
+
+        
+      }
+    }
+
     const {sheme} = getModel({slug});
 
     Object.entries(sheme.input).forEach((item) => {

@@ -1,4 +1,6 @@
-export const configurations = {
+import { Configurations } from "@/types";
+
+export const configurations: Configurations = {
   'tryon': {
     type: 'gradio',
     client: "yisol/IDM-VTON",
@@ -7,7 +9,6 @@ export const configurations = {
       { type: 'image', placeholder: 'Enter your name', name: 'garm_img', gradioName: 'garm_img', show: true },
       { type: 'image', placeholder: 'Upload your profile picture', name: 'Human', show: true },
       { type: 'prompt', label: 'Description of the garment', name: 'garment_des', value: 'Hello!!', show: true },
-      { type: 'prompt', placeholder: 'Another description (optional)', name: 'description', show: false },
       { type: 'checkbox', placeholder: 'Is checked?', name: 'is_checked', value: true, show: false },
       { type: 'checkbox', placeholder: 'Is checked crop?', name: 'is_checked_crop', value: false, show: false },
       { type: 'number', placeholder: 'Denoise Steps', name: 'denoise_steps', value: 30, show: false },

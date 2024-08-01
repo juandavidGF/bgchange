@@ -11,7 +11,7 @@ import { XCircleIcon } from "@heroicons/react/20/solid";
 import { PhotoIcon, FaceSmileIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu";
-import { ImageAreaProps } from "@/types";
+import { Configurations, ImageAreaProps, InputItem } from "@/types";
 import { sleep } from "@/utils";
 import { configurations } from "@/common/configuration";
 import { Prompt } from "@/components/prompt";
@@ -393,12 +393,13 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
     && slug !== "tryon"
   ) return <PageNotFound />;
 
-  let config;
+  let config: Configurations | null;
 
   if (slug in configurations) {
-    config = configurations[slug as keyof typeof configurations]; 
+    config = configurations[slug];
     console.log(config);
   } else {
+    config = null;
     console.error(`Invalid slug (no in config): ${slug}`);
     // throw Error(`Invalid slug: ${slug}`);
   }
@@ -540,8 +541,30 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
   async function submitImage({slug}: {slug: Slug}): Promise<void> {
     const params: any = { prompt, image: base64Images, video: base64Video }
 
+    // console.log({params});
+    
+    if(config?.inputs) {
+      let imgI = 0;
+      for (const [key, value] of Object.entries(config.inputs)) {
+        if (value.show) {
+          const {type} = value;
+          if (type === 'image') {
+            if(!params[type][imgI]) {
+              alert(`must to fill the ${type} ${imgI}`)
+              return;
+            }
+            imgI++;
+          } else if(params[type]) {
+            console.log(`${type} ${imgI} filled`);
+          } else {
+            alert(`must to fill the ${type}`)
+            return;
+          }
+        }
+      }
+    }
+    
     for (const [key, value] of Object.entries(model.input)) {
-      console.log({key, value})
       if (value) {
         if(typeof value === 'number') {
           for(let i= 0; i < value ;i++) {
@@ -559,7 +582,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
           } else {
             console.log('alert', key, params[key]);
             setError(`Must fill the field ${key}`);
-            return; // Exit the function early
+            return;
           }
         }
       }
@@ -635,38 +658,34 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
         <div className="flex flex-col w-1/2">
           <h1 className="mx-auto">Input</h1>
           <section className="mx-4 mt-9 flex flex-col space-y-8 lg:mx-6 gap-4 lg:space-x-8 lg:space-y-0 xl:mx-8">
-            {config?.inputs.map((item, index) => {
+            {config?.inputs.map((item: InputItem, index: number) => {
               if (('show' in item) && item['show']) {
                 const { type } = item;
                 switch (type) {
                   case 'image':
                     const Img = !files[contImg] ? 
-                      <div>
-                        <div>{contImg}</div>
-                        <ImageDropzone 
-                          key={index}
-                          id={contImg}
-                          title={`Drag 'n drop your image here or click to upload`}
-                          onImageDrop={onImageDrop}
-                          icon={slug === 'hairStyle' ? FaceSmileIcon : PhotoIcon}
-                        />
-                      </div>
+                      (<ImageDropzone
+                        key={index}
+                        id={contImg}
+                        title={`Drag 'n drop your image here or click to upload`}
+                        onImageDrop={onImageDrop}
+                        icon={slug === 'hairStyle' ? FaceSmileIcon : PhotoIcon}
+                      />)
                       :
-                      <div>
-                        <div>{contImg}</div>
-                        <UploadedImage
-                          key={contImg}
-                          image={files[contImg]}
-                          removeImage={() => removeImage(contImg)}
-                          file={{ name: files[contImg].name, size: fileSize(files[contImg].size) }}
-                        />
-                      </div>
+                      (<UploadedImage
+                        key={index}
+                        image={files[contImg]}
+                        removeImage={() => removeImage(contImg)}
+                        file={{ name: files[contImg].name, size: fileSize(files[contImg].size) }}
+                      />)
+                      
                     
                     contImg += 1;
                     return Img;
                   case 'prompt':
                     return(
                       <Prompt
+                        key={index}
                         label={item.label as string}
                         placeholder={item.placeholder as string} 
                         placeholderTextArea={item.value as string}
