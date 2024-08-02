@@ -377,7 +377,7 @@ function layout({slug}: {slug: string}): { model: Model } {
   return {model};
 }
 
-type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | 'tryon';
+type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | 'tryon' | 'logo';
 type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
 /**
  * Display the home page
@@ -627,19 +627,21 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
       status = result.state.status;
 
       console.log({status});
-
-      
     } while (status !== 'succeeded' && status !== 'failed');
 
     if (status === 'failed') throw Error("status failed");
 
-    
+    console.log({result});
 
     config?.outputs.forEach((item: OutputItem) => {
       const {type} = item;
       if (type === 'image') {
-        const key = config?.outputs[0].key;
-        setOutputImage(result.state.output[key]);
+        if(typeof result.state.output === 'string') {
+          setOutputImage(result.state.output);
+        } else {
+          const key = config?.outputs[0].key;
+          setOutputImage(result.state.output[key]);
+        }
       } else if (type === 'video') {
         const key = config?.outputs[0].key;
         setOutputVideo(result.state.output[key]);
@@ -697,6 +699,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                         key={index}
                         label={item.label as string}
                         placeholder={item.placeholder as string} 
+                        subtitle={item.subtitle as string}
                         placeholderTextArea={item.value as string}
                         setPrompt={setPrompt}
                       />)

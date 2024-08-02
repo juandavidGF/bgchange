@@ -42,8 +42,6 @@ export async function POST(
         if(!model || typeof model !== "string") throw Error(`not model found or format issue ${model}`);
 
         const version: string | undefined = config.version;
-        if(!version) throw Error('api/app/[]/ version not found');
-
 
         // I need to check how to convert array of object, to object,
 
@@ -81,17 +79,18 @@ export async function POST(
         if(!input) throw Error('api/app/[]/ input is not a object');
 
         console.log('xxx ->', {model, version , input});
-        // const output = await replicate.predictions.create({
-        //   version,
-        //   input,
-        // });
+        const output = await replicate.predictions.create({
+          model,
+          version,
+          input,
+        });
 
-        const output = {
-          id: "nbjvdfmzwdrgg0ch1tn8dee3j8"
-        };
-
-        console.log(`api/[${slug}]`, {output});
+        // const output = {
+        //   id: "nbjvdfmzwdrgg0ch1tn8dee3j8"
+        // };
+        
         if (!output) {
+          console.log(`api/[${slug}] !output`, {output});
           console.log('Something went wrong');
           return NextResponse.json(
             { error: 'Something went wrong' },

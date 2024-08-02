@@ -31,4 +31,5 @@ export const navigation: Array<NavItem> = [
   { name: 'Trip Planner', href: '/chat/trip', icon: PaperAirplaneIcon },
   { name: 'TryOn', href: '/app/tryon', icon: UserCircleIcon },
   { name: 'Sam2', href: '/app/sam2', icon: UserCircleIcon },
+  { name: 'Logo', href: '/app/logo', icon: UserCircleIcon },
 ];

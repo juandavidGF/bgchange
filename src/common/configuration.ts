@@ -34,4 +34,18 @@ export const configurations: Configurations = {
       { type: 'image', placeholder: 'Segmented Image, combined mask', key:'combined_mask', show: true },
     ],
   },
+  'logo': {
+    type: 'replicate',
+    model: 'black-forest-labs/flux-schnell',
+    version: null,
+    inputs: [
+      { type: 'prompt', key: 'prompt', label: 'Prompt', placeholder: 'Description of the logo', value: "a green logo, simple, minimalistic that says, 'juand4bot'", show: true },
+      { type: 'text', key: 'aspect_ratio', value: "1:1" },
+      { type: 'text', key: 'output_format', value: "webp" },
+      { type: 'number', key: 'output_quality', value: 90 },
+    ],
+    outputs: [
+      { type: 'image', placeholder: 'Segmented Image, combined mask', key:'combined_mask', show: true },
+    ],
+  }
 };
