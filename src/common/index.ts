@@ -32,4 +32,5 @@ export const navigation: Array<NavItem> = [
   { name: 'TryOn', href: '/app/tryon', icon: UserCircleIcon },
   { name: 'Sam2', href: '/app/sam2', icon: UserCircleIcon },
   { name: 'Logo', href: '/app/logo', icon: UserCircleIcon },
+  { name: 'EVF-SAM', href: '/app/EVF-SAM', icon: UserCircleIcon },
 ];

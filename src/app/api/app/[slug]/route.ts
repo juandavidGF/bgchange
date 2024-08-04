@@ -3,7 +3,7 @@ import Replicate from 'replicate';
 import { Slug } from '@/types';
 import { Configurations } from "@/types";
 import { configurations } from '@/common/configuration';
-import { Client } from "@gradio/client";
+import { Client, handle_file } from "@gradio/client";
 
 type Status = "successful" | "failed" | "canceled";
 
@@ -14,19 +14,61 @@ export async function POST(
   request: Request,
   { params }: { params: { slug: Slug } },
 ) {
-  const req = await request.json();
-
-  // console.log({req});
   
   const slug = params.slug;
 
   // return NextResponse.json(
   //   { status: 201 }
   // );
-  
 
   try {
-    if(configurations[slug]) {
+
+    if (slug  === 'EVF-SAM' && configurations[slug]) {
+      console.log('flag1');
+      const config = configurations[slug];
+      const formData = await request.formData();
+      console.log('flag1.1');
+
+      const image = formData.get(configurations['EVF-SAM'].inputs[0].key) as File | null;
+      const prompt = formData.get(configurations['EVF-SAM'].inputs[1].key) as String | null;
+
+      console.log('flag1.2', {image, prompt});
+
+      if (!image || !prompt) {
+        return NextResponse.json(
+          { error: "Both image and prompt are required." }, 
+          { status: 400 }
+        );
+      }
+
+      
+      const imageBuffer = await image.arrayBuffer();
+      console.log('flag2', config.client, config.path);
+
+      const app = await Client.connect(config.client as string);
+      console.log('flag2.1', config.client, config.path);
+      const output = await app.predict(config.path as string, {
+        image_np: handle_file(image),
+        prompt: prompt
+      });
+
+      console.log('gradio EV', output.data);
+      if (!output) {
+        console.log('Something went wrong');
+        return NextResponse.json(
+          { error: 'Something went wrong' },
+          { status: 500 }
+        );
+      }
+
+      console.log('flag4');
+      
+      return NextResponse.json(
+        output.data,
+        { status: 201 }
+      );
+    } else if(configurations[slug]) {
+      const req = await request.json();
       const config = configurations[slug];
 
       let indImg = 0;
@@ -148,6 +190,8 @@ export async function POST(
       );
     }
 
+    const req = await request.json();
+
     const {sheme} = getModel({slug});
 
     Object.entries(sheme.input).forEach((item) => {
@@ -216,7 +260,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("api/app/[]" + error.message);
+    console.error("api/app/[] err" + JSON.stringify(error, null, 2));
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

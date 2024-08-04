@@ -20,7 +20,7 @@ export type ImageAreaProps = {
   >;
 };
 
-export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | "tryon";
+export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | "tryon"  | "EVF-SAM";
 
 export type InputItem = {
   type: string;

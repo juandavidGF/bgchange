@@ -34,6 +34,19 @@ export const configurations: Configurations = {
       { type: 'image', placeholder: 'Segmented Image, combined mask', key:'combined_mask', show: true },
     ],
   },
+  'EVF-SAM': {
+    type: 'gradio',
+    client: 'wondervictor/evf-sam',
+    path: '/predict',
+    inputs: [
+      { type: 'image', key: 'image_np', value: null, show: true },
+      { type: 'prompt', key: 'prompt', label: 'Prompt', description: 'Use a phrase or sentence to describe the object you want to segment. Currently we only support English', value: null, show: true },
+    ],
+    outputs: [
+      { type: 'image', placeholder: 'Visualitation', key:'visulization', show: true },
+      { type: 'image', placeholder: 'mask', key:'mask', show: true },
+    ],
+  },
   'logo': {
     type: 'replicate',
     model: 'black-forest-labs/flux-schnell',

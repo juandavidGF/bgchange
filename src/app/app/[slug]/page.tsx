@@ -377,7 +377,7 @@ function layout({slug}: {slug: string}): { model: Model } {
   return {model};
 }
 
-type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | 'tryon' | 'logo';
+type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | 'tryon' | 'logo' | 'EVF-SAM';
 type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
 /**
  * Display the home page
@@ -587,74 +587,130 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
 
     setLoading(true);
 
-    const genA = await fetch(`/api/app/${slug}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
-    });
+    let prediction: any;
 
-    const {id} = await genA.json();
+    if (slug === 'EVF-SAM') {
+      if(!prompt) {
+        alert('Please upload the files.');
+        return;
+      }
+      console.log()
+      // TODO here I can send it like a form Data ...
+      const formData = new FormData();
+      formData.append(configurations['EVF-SAM'].inputs[0].key, files[0]);
+      formData.append(configurations['EVF-SAM'].inputs[1].key, prompt);
 
-    if (id.error) {
-      setError(id.error);
-      setLoading(false);
-      return;
-    }
+      console.log('flag1', {formData});
 
-    let response: any;
-    let result: any;
-    let status: Status | null = null;
-
-    do {
-      await sleep(1_000);
-      response = await fetch(`/api/app/${slug}/get`, {
+      const response = await fetch(`/api/app/${slug}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id }),
+        body: formData,
       });
-      result = await response.json();
+      console.log('flag2', {response});
       
-      if (result.error) {
-        setError(result.error);
+      prediction = await response.json();
+      const {id} = prediction;
+      if (response.status !== 201) {
+        setError(prediction.detail);
         setLoading(false);
         return;
       }
 
-      status = result.state.status;
+      while(
+        prediction.status !== "succeeded" &&
+        prediction.status !== "failed"
+      ) {
+        await sleep(500);
 
-      console.log({status});
-    } while (status !== 'succeeded' && status !== 'failed');
+        const response = await fetch(`/api/app/${slug}/get`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id }),
+        });
 
-    if (status === 'failed') throw Error("status failed");
+        prediction = await response.json();
 
-    console.log({result});
+        if (response.status !== 200) {
+          setError(prediction.detail);
+          setLoading(false);
+          return;
+        }
+      }
+
+    } else {
+      let response: any;
+      let result: any;
+      let status: Status | null = null;
+
+
+      const genA = await fetch(`/api/app/${slug}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(params),
+      });
+  
+      const {id} = await genA.json();
+  
+      if (id.error) {
+        setError(id.error);
+        setLoading(false);
+        return;
+      }
+      
+      do {
+        await sleep(1_000);
+        response = await fetch(`/api/app/${slug}/get`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id }),
+        });
+        result = await response.json();
+        
+        if (result.error) {
+          setError(result.error);
+          setLoading(false);
+          return;
+        }
+  
+        status = result.state.status;
+  
+        console.log({status});
+      } while (status !== 'succeeded' && status !== 'failed');
+      
+      if (status === 'failed') throw Error("status failed");
+      prediction = result;
+    }
+    
+
 
     config?.outputs.forEach((item: OutputItem) => {
       const {type} = item;
       if (type === 'image') {
-        if(typeof result.state.output === 'string') {
-          setOutputImage(result.state.output);
+        if(typeof prediction.state.output === 'string') {
+          setOutputImage(prediction.state.output);
         } else {
           const key = config?.outputs[0].key;
-          setOutputImage(result.state.output[key]);
+          setOutputImage(prediction.state.output[key]);
         }
       } else if (type === 'video') {
         const key = config?.outputs[0].key;
-        setOutputVideo(result.state.output[key]);
+        setOutputVideo(prediction.state.output[key]);
       }
     })
 
     if(model.output.video) {
-      console.log({result});
-      const videox = result.state.output ? result.state.output[0] : null;
+      console.log({prediction});
+      const videox = prediction.state.output ? prediction.state.output[0] : null;
       console.log({videox})
       setOutputVideo(videox);
     } else if(model.output.image) {
-      setOutputImage(result.output[0]);
+      setOutputImage(prediction.output[0]);
     }
 
     setLoading(false);
@@ -699,7 +755,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                         key={index}
                         label={item.label as string}
                         placeholder={item.placeholder as string} 
-                        subtitle={item.subtitle as string}
+                        description={item.description}
                         placeholderTextArea={item.value as string}
                         setPrompt={setPrompt}
                       />)
@@ -793,8 +849,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
 
         <div className="flex flex-col w-1/2">
           <h1 className="mx-auto">Output</h1>
-          <section className="mx-4 mt-9 flex flex-col space-y-8 lg:mx-6 lg:flex-row lg:space-x-8 lg:space-y-0 xl:mx-8">
-
+          <section className="mx-4 mt-9 flex flex-col gap-4">
             {config?.outputs.map((item: OutputItem, index: number) => {
               if (('show' in item) && item['show']) {
                 if(item.type === 'image') { 
@@ -805,7 +860,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                     icon={SparklesIcon}
                     loading={loading}
                   />
-                } else if (item.type === 'vide') {
+                } else if (item.type === 'video') {
                   return <video
                     src={outputVideo as string}
                     width="520"
@@ -819,8 +874,6 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                 }
               }
             })}
-          
-
 
             {model.output.image && (
               <ImageOutput
