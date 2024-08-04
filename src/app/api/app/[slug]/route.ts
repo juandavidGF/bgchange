@@ -51,7 +51,7 @@ export async function POST(
         image_np: handle_file(image),
         prompt: prompt
       });
-
+      
       console.log('gradio EV', output.data);
       if (!output) {
         console.log('Something went wrong');
@@ -60,8 +60,6 @@ export async function POST(
           { status: 500 }
         );
       }
-
-      console.log('flag4');
       
       return NextResponse.json(
         output.data,

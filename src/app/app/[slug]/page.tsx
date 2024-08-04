@@ -606,36 +606,22 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
         method: "POST",
         body: formData,
       });
-      console.log('flag2', {response});
-      
-      prediction = await response.json();
-      const {id} = prediction;
       if (response.status !== 201) {
-        setError(prediction.detail);
+        console.log('err ', {response})
+        setError("error");
         setLoading(false);
         return;
       }
+      console.log('flag2');
+      
+      const responseJSON = await response.json();
+      console.log('flag3', {responseJSON})
 
-      while(
-        prediction.status !== "succeeded" &&
-        prediction.status !== "failed"
-      ) {
-        await sleep(500);
-
-        const response = await fetch(`/api/app/${slug}/get`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ id }),
-        });
-
-        prediction = await response.json();
-
-        if (response.status !== 200) {
-          setError(prediction.detail);
-          setLoading(false);
-          return;
+      console.log({responseJSON});
+      
+      prediction = {
+        state: {
+          output: responseJSON[0].url,
         }
       }
 

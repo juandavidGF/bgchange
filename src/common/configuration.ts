@@ -39,7 +39,7 @@ export const configurations: Configurations = {
     client: 'wondervictor/evf-sam',
     path: '/predict',
     inputs: [
-      { type: 'image', key: 'image_np', value: null, show: true },
+      { component: 'image', type: 'image', key: 'image_np', value: null, show: true },
       { type: 'prompt', key: 'prompt', label: 'Prompt', description: 'Use a phrase or sentence to describe the object you want to segment. Currently we only support English', value: null, show: true },
     ],
     outputs: [
