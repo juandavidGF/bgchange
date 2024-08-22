@@ -2,6 +2,7 @@ import './globals.css';
 import { Analytics } from '@vercel/analytics/react';
 import { Inter } from 'next/font/google';
 import { Sidebar } from './sidebar';
+import ClientSidebarWrapper from './ClientSidebarWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -34,8 +35,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang='en'>
       <body className={inter.className}>
-        <Sidebar />
-        {children}
+        <ClientSidebarWrapper>
+          <Sidebar />
+        </ClientSidebarWrapper>
+        <main>
+          {children}
+        </main>
         <Analytics />
       </body>
     </html>
