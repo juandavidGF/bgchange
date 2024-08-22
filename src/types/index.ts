@@ -23,32 +23,33 @@ export type ImageAreaProps = {
 export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | "tryon"  | "EVF-SAM";
 
 export type InputItem = {
-  type: string;
+  type: 'text' | 'image' | 'prompt' | 'checkbox' | 'number';
+  key: string;
   placeholder?: string;
-  name?: string;
   gradioName?: string;
   show?: boolean;
   label?: string;
+  description?: string;
   value?: any;
-  [key: string]: any;
+  component?: string;
 };
 
 export type OutputItem = {
-  type: string;
-  placeholder?: string;
+  type: 'text' | 'image';
   key: string;
-  [key: string]: any;
+  placeholder?: string;
+  show?: boolean;
 };
-type Configuration = {
-  type?: string;
+
+export type Configuration = {
+  type: 'gradio' | 'replicate';
   client?: string;
   path?: string;
   endpoint?: string;
   model?: `${string}/${string}` | `${string}/${string}:${string}`;
+  version?: string | null;
   inputs: InputItem[];
-  outputs?: OutputItem[];
-  [key: string]: any;
+  outputs: OutputItem[];
 };
-
 
 export type Configurations = { [key: string]: Configuration };
