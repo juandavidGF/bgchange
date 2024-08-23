@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { InputItem, OutputItem, Configuration } from "@/types";
-import { PlusCircle, X } from 'lucide-react';
+import { PlusCircle, X, ChevronDown } from 'lucide-react';
 
 export default function CreateAppForm() {
   const [appName, setAppName] = useState('');
@@ -46,9 +46,7 @@ export default function CreateAppForm() {
 
   const isFormValid = () => {
     const isInputsValid = inputs.length > 0 && inputs.every(input => input.key.trim() !== '');
-    const isOutputsValid = outputs.length > 0 && outputs.every(output => 
-      output.key.trim() !== '' && output.placeholder.trim() !== ''
-    );
+    const isOutputsValid = outputs.length > 0 && outputs.every(output => output.key.trim() !== '');
     return isInputsValid && isOutputsValid && appName.trim() !== '';
   };
 
@@ -110,14 +108,17 @@ export default function CreateAppForm() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">App Type:</label>
-          <select
-            value={appType}
-            onChange={(e) => setAppType(e.target.value as 'gradio' | 'replicate')}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="gradio">Gradio</option>
-            <option value="replicate">Replicate</option>
-          </select>
+          <div className="relative">
+            <select
+              value={appType}
+              onChange={(e) => setAppType(e.target.value as 'gradio' | 'replicate')}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+            >
+              <option value="gradio">Gradio</option>
+              <option value="replicate">Replicate</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+          </div>
         </div>
       </div>
 
