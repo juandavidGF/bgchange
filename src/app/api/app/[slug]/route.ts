@@ -81,7 +81,7 @@ export async function POST(
 
         if(!model || typeof model !== "string") throw Error(`not model found or format issue ${model}`);
 
-        const version: string | undefined = config.version;
+        const version = config.version as string | undefined;
 
         // I need to check how to convert array of object, to object,
 

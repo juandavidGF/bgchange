@@ -1,23 +1,26 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { MongoClient } from 'mongodb';
 
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'POST') {
-    try {
-      const client = await clientPromise;
-      
-      const { collection } = await validateMongoDBConnection(client);
+export async function POST(request: Request) {
+  try {
+    const client = await clientPromise;
+    const body = await request.json();
+    
+    const { collection } = await validateMongoDBConnection(client);
 
-      const result = await collection.insertOne(req.body);
+    const documentToInsert = {
+      ...body,
+      createdAt: new Date()
+    };
 
-      res.status(201).json({ message: 'App configuration created', id: result.insertedId });
-    } catch (error) {
-      res.status(500).json({ message: 'Error creating app configuration', error });
-    }
-  } else {
-    res.status(405).json({ message: 'Method not allowed' });
+    const result = await collection.insertOne(documentToInsert);
+
+    return NextResponse.json({ message: 'App configuration created', id: result.insertedId }, { status: 201 });
+  } catch (error: any) {
+    console.error('Error in POST /api/create-app:', error);
+    return NextResponse.json({ message: 'Error creating app configuration', error: error.message }, { status: 500 });
   }
 }
 
@@ -42,10 +45,10 @@ async function validateMongoDBConnection(client: MongoClient) {
   }
 
   // Verify the collection exists, create it if it doesn't
-  const collections = await database.listCollections({ name: 'apps' }).toArray();
+  const collections = await database.listCollections({ name: collectionName }).toArray();
   if (collections.length === 0) {
-    await database.createCollection('apps');
-    console.log('Created "apps" collection');
+    await database.createCollection(collectionName);
+    console.log(`Created "${collectionName}" collection`);
   }
 
   return { database, collection };
