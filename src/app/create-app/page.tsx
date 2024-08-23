@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { InputItem, OutputItem, Configuration } from "@/types";
+import { PlusCircle, X } from 'lucide-react';
 
 export default function CreateAppForm() {
   const [appName, setAppName] = useState('');
   const [appType, setAppType] = useState<'gradio' | 'replicate'>('gradio');
-  const [inputs, setInputs] = useState<InputItem[]>([{ type: 'text', key: '', show: false }]);
-  const [outputs, setOutputs] = useState<OutputItem[]>([{ type: 'text', key: '', placeholder: '', show: true }]);
+  const [inputs, setInputs] = useState<InputItem[]>([]);
+  const [outputs, setOutputs] = useState<OutputItem[]>([]);
   const [path, setPath] = useState('/predict');
   const [client, setClient] = useState('');
   const [model, setModel] = useState('');
@@ -33,14 +34,29 @@ export default function CreateAppForm() {
     setOutputs(newOutputs);
   };
 
+  const removeInput = (index: number) => {
+    const newInputs = inputs.filter((_, i) => i !== index);
+    setInputs(newInputs);
+  };
+
+  const removeOutput = (index: number) => {
+    const newOutputs = outputs.filter((_, i) => i !== index);
+    setOutputs(newOutputs);
+  };
+
+  const isFormValid = () => {
+    const isInputsValid = inputs.length > 0 && inputs.every(input => input.key.trim() !== '');
+    const isOutputsValid = outputs.length > 0 && outputs.every(output => 
+      output.key.trim() !== '' && output.placeholder.trim() !== ''
+    );
+    return isInputsValid && isOutputsValid && appName.trim() !== '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const isInputsValid = inputs.every(input => input.key.trim() !== '');
-    const isOutputsValid = outputs.every(output => output.key.trim() !== '');
-
-    if (!isInputsValid || !isOutputsValid) {
-      alert('All input and output fields must be filled.');
+    if (!isFormValid()) {
+      alert('Please fill all required fields and add at least one input and one output.');
       return;
     }
 
@@ -94,22 +110,14 @@ export default function CreateAppForm() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">App Type:</label>
-          <div className="relative">
-            <select
-              value={appType}
-              onChange={(e) => setAppType(e.target.value as 'gradio' | 'replicate')}
-              className="w-full px-3 h-10 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none flex items-center leading-none"
-              style={{ paddingRight: '2.5rem' }}
-            >
-              <option value="gradio">Gradio</option>
-              <option value="replicate">Replicate</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-              </svg>
-            </div>
-          </div>
+          <select
+            value={appType}
+            onChange={(e) => setAppType(e.target.value as 'gradio' | 'replicate')}
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="gradio">Gradio</option>
+            <option value="replicate">Replicate</option>
+          </select>
         </div>
       </div>
 
@@ -229,19 +237,33 @@ export default function CreateAppForm() {
                 placeholder="Component"
                 className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <div className="col-span-2 flex items-center justify-between">
+                <label className="flex items-center space-x-2 text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={input.show}
+                    onChange={(e) => updateInput(index, 'show', e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-blue-500"
+                  />
+                  <span>Show</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => removeInput(index)}
+                  className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
-            <label className="flex items-center space-x-2 text-gray-300 mt-2">
-              <input
-                type="checkbox"
-                checked={input.show}
-                onChange={(e) => updateInput(index, 'show', e.target.checked)}
-                className="form-checkbox h-5 w-5 text-blue-500"
-              />
-              <span>Show</span>
-            </label>
           </div>
         ))}
-        <button type="button" onClick={addInput} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+        <button 
+          type="button" 
+          onClick={addInput} 
+          className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 flex items-center justify-center"
+        >
+          <PlusCircle size={20} className="mr-2" />
           Add Input
         </button>
       </div>
@@ -249,41 +271,57 @@ export default function CreateAppForm() {
       <div>
         <h3 className="text-lg font-semibold text-gray-200 mb-2">Outputs:</h3>
         {outputs.map((output, index) => (
-          <div key={index} className="mb-4 flex flex-wrap items-center gap-2">
-            <select
-              value={output.type}
-              onChange={(e) => updateOutput(index, 'type', e.target.value as OutputItem['type'])}
-              className="w-full sm:w-auto flex-grow sm:flex-grow-0 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="text">Text</option>
-              <option value="image">Image</option>
-            </select>
-            <input
-              type="text"
-              value={output.key}
-              onChange={(e) => updateOutput(index, 'key', e.target.value)}
-              placeholder="Key"
-              className="w-full sm:w-auto flex-grow px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              value={output.placeholder || ''}
-              onChange={(e) => updateOutput(index, 'placeholder', e.target.value)}
-              placeholder="Placeholder"
-              className="w-full sm:w-auto flex-grow px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <label className="flex items-center space-x-2 text-gray-300">
+          <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
+            <div className="grid grid-cols-2 gap-4">
+              <select
+                value={output.type}
+                onChange={(e) => updateOutput(index, 'type', e.target.value as OutputItem['type'])}
+                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="text">Text</option>
+                <option value="image">Image</option>
+              </select>
               <input
-                type="checkbox"
-                checked={output.show}
-                onChange={(e) => updateOutput(index, 'show', e.target.checked)}
-                className="form-checkbox h-5 w-5 text-blue-500"
+                type="text"
+                value={output.key}
+                onChange={(e) => updateOutput(index, 'key', e.target.value)}
+                placeholder="Key"
+                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <span>Show</span>
-            </label>
+              <input
+                type="text"
+                value={output.placeholder || ''}
+                onChange={(e) => updateOutput(index, 'placeholder', e.target.value)}
+                placeholder="Placeholder"
+                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex items-center justify-between">
+                <label className="flex items-center space-x-2 text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={output.show}
+                    onChange={(e) => updateOutput(index, 'show', e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-blue-500"
+                  />
+                  <span>Show</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => removeOutput(index)}
+                  className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
           </div>
         ))}
-        <button type="button" onClick={addOutput} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+        <button 
+          type="button" 
+          onClick={addOutput} 
+          className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 flex items-center justify-center"
+        >
+          <PlusCircle size={20} className="mr-2" />
           Add Output
         </button>
       </div>
@@ -291,7 +329,7 @@ export default function CreateAppForm() {
       <button 
         type="submit" 
         className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-        disabled={inputs.some(input => input.key.trim() === '') || outputs.some(output => output.key.trim() === '')}
+        disabled={!isFormValid()}
       >
         Create App
       </button>
