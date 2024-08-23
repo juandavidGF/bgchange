@@ -9,6 +9,8 @@ export async function GET() {
 
     const apps = await collection.find({}).toArray();
 
+    console.log('get apps', {apps});
+
     return NextResponse.json(apps, { status: 200 });
   } catch (error: any) {
     console.error('Error in GET /api/get-apps:', error);

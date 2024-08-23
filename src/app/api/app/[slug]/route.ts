@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
 import { Slug } from '@/types';
 import { Configurations } from "@/types";
-import { configurations } from '@/common/configuration';
+import configurations from '@/common/configuration';
 import { Client, handle_file } from "@gradio/client";
 
 type Status = "successful" | "failed" | "canceled";
