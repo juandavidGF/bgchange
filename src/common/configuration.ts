@@ -1,6 +1,6 @@
 import { Configurations } from "@/types";
 
-export const configurations: Configurations = {
+const configurations: Configurations = {
   'tryon': {
     type: 'gradio',
     client: "yisol/IDM-VTON",
@@ -62,3 +62,5 @@ export const configurations: Configurations = {
     ],
   }
 };
+
+export default configurations;

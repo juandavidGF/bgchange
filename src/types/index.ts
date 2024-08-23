@@ -35,7 +35,7 @@ export type InputItem = {
 };
 
 export type OutputItem = {
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'video'; 
   key: string;
   placeholder?: string;
   show?: boolean;

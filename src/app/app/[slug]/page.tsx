@@ -11,9 +11,9 @@ import { XCircleIcon } from "@heroicons/react/20/solid";
 import { PhotoIcon, FaceSmileIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu";
-import { Configurations, ImageAreaProps, InputItem, OutputItem } from "@/types";
+import { Configuration, Configurations, ImageAreaProps, InputItem, OutputItem } from "@/types";
 import { sleep } from "@/utils";
-import { configurations } from "@/common/configuration";
+import configurationObj from "@/common/configuration";
 import { Prompt } from "@/components/prompt";
 
 type ErrorNotificationProps = {
@@ -383,24 +383,48 @@ type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
  * Display the home page
  */
 export default function HomePage({ params }: { params: { slug: Slug } }) {
+
+  const [configurations, setConfigurations] = useState<Configurations | null>(configurationObj);
+
+  useEffect(() => {
+    const fetchConfigurations = async () => {
+      try {
+        const response = await fetch('/api/get-apps');
+        if (!response.ok) throw new Error('Failed to fetch configurations');
+        const data = await response.json();
+        setConfigurations(prev => ({ ...prev, ...data }));
+      } catch (error) {
+        console.error('Error fetching configurations:', error);
+      }
+    };
+
+    fetchConfigurations();
+
+  }, []);
   
-  const slug = params.slug;
 
-  let config: Configurations | null;
+  const slug: Slug = params.slug;
 
-  if (slug in configurations) {
-    config = configurations[slug];
-    console.log(config);
+  let config: Configuration | null;
+
+  if (configurations) {
+    if (slug in configurations) {
+      config = configurations[slug];
+      console.log(config);
+    } else {
+      config = null;
+      console.error(`Invalid slug (no in config): ${slug}`);
+      if(slug !== "freshink"
+        && slug !== "createVideo"
+        && slug !== "upscaler"
+        && slug !== "hairStyle"
+        && slug !== "livePortrait"
+        && slug !== "tryon"
+      ) return <PageNotFound />;
+    }
   } else {
-    config = null;
-    console.error(`Invalid slug (no in config): ${slug}`);
-    if(slug !== "freshink"
-      && slug !== "createVideo"
-      && slug !== "upscaler"
-      && slug !== "hairStyle"
-      && slug !== "livePortrait"
-      && slug !== "tryon"
-    ) return <PageNotFound />;
+    console.error('Configurations are null');
+    return <PageNotFound />;
   }
   
   const {model} = layout({slug});
@@ -596,35 +620,36 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
       }
       console.log()
       // TODO here I can send it like a form Data ...
-      const formData = new FormData();
-      formData.append(configurations['EVF-SAM'].inputs[0].key, files[0]);
-      formData.append(configurations['EVF-SAM'].inputs[1].key, prompt);
+      if (configurations) { // Check if configurations is not null
+        const formData = new FormData();
+        formData.append(configurations['EVF-SAM'].inputs[0].key, files[0]);
+        formData.append(configurations['EVF-SAM'].inputs[1].key, prompt);
 
-      console.log('flag1', {formData});
+        console.log('flag1', {formData});
 
-      const response = await fetch(`/api/app/${slug}`, {
-        method: "POST",
-        body: formData,
-      });
-      if (response.status !== 201) {
-        console.log('err ', {response})
-        setError("error");
-        setLoading(false);
-        return;
-      }
-      console.log('flag2');
-      
-      const responseJSON = await response.json();
-      console.log('flag3', {responseJSON})
+        const response = await fetch(`/api/app/${slug}`, {
+          method: "POST",
+          body: formData,
+        });
+        if (response.status !== 201) {
+          console.log('err ', {response})
+          setError("error");
+          setLoading(false);
+          return;
+        }
+        console.log('flag2');
+        
+        const responseJSON = await response.json();
+        console.log('flag3', {responseJSON})
 
-      console.log({responseJSON});
-      
-      prediction = {
-        state: {
-          output: responseJSON[0].url,
+        console.log({responseJSON});
+        
+        prediction = {
+          state: {
+            output: responseJSON[0].url,
+          }
         }
       }
-
     } else {
       let response: any;
       let result: any;
@@ -741,7 +766,7 @@ export default function HomePage({ params }: { params: { slug: Slug } }) {
                         key={index}
                         label={item.label as string}
                         placeholder={item.placeholder as string} 
-                        description={item.description}
+                        description={item.description as string}
                         placeholderTextArea={item.value as string}
                         setPrompt={setPrompt}
                       />)
