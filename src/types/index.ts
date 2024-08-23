@@ -42,6 +42,7 @@ export type OutputItem = {
 };
 
 export type Configuration = {
+  name: string;
   type: 'gradio' | 'replicate';
   client?: string;
   path?: string;
@@ -52,4 +53,4 @@ export type Configuration = {
   outputs: OutputItem[];
 };
 
-export type Configurations = { [key: string]: Configuration };
+export type Configurations = Configuration[];

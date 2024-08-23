@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import ClientPage from './ClientPage';
 import { Slug } from '@/types';
+import configurationObj from '@/common/configuration';
 
 // ... (keep other imports)
 
@@ -18,11 +19,14 @@ async function getConfigurations() {
 }
 
 export default async function Page({ params }: { params: { slug: Slug } }) {
-  const configurations = await getConfigurations();
+
+  const configurations = [...configurationObj, ...(await getConfigurations())];
 
   if (!configurations) {
     return notFound();
   }
+
+
 
   return (
     <Suspense fallback={<div>Loading...</div>}>

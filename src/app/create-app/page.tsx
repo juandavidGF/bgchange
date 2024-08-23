@@ -59,6 +59,7 @@ export default function CreateAppForm() {
     }
 
     const newApp: Configuration = {
+      name: appName,
       type: appType,
       inputs,
       outputs,

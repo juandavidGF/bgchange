@@ -1,7 +1,8 @@
 import { Configurations } from "@/types";
 
-const configurations: Configurations = {
-  'tryon': {
+const configurations: Configurations = [
+  {
+    name: 'tryon',
     type: 'gradio',
     client: "yisol/IDM-VTON",
     path: "/tryon",
@@ -19,7 +20,8 @@ const configurations: Configurations = {
       { type: 'image', placeholder: 'Your profile picture', key: 'outputProfilePicture', show: true },
     ],
   },
-  'sam2': {
+  {
+    name: 'sam2',
     type: 'replicate',
     model: 'meta/sam-2',
     version: 'fe97b453a6455861e3bac769b441ca1f1086110da7466dbb65cf1eecfd60dc83',
@@ -34,7 +36,8 @@ const configurations: Configurations = {
       { type: 'image', placeholder: 'Segmented Image, combined mask', key:'combined_mask', show: true },
     ],
   },
-  'EVF-SAM': {
+  {
+    name: 'EVF-SAM',
     type: 'gradio',
     client: 'wondervictor/evf-sam',
     path: '/predict',
@@ -47,20 +50,7 @@ const configurations: Configurations = {
       { type: 'image', placeholder: 'mask', key:'mask', show: true },
     ],
   },
-  'logo': {
-    type: 'replicate',
-    model: 'black-forest-labs/flux-schnell',
-    version: null,
-    inputs: [
-      { type: 'prompt', key: 'prompt', label: 'Prompt', placeholder: 'Description of the logo', value: "a green logo, simple, minimalistic that says, 'juand4bot'", show: true },
-      { type: 'text', key: 'aspect_ratio', value: "1:1" },
-      { type: 'text', key: 'output_format', value: "webp" },
-      { type: 'number', key: 'output_quality', value: 90 },
-    ],
-    outputs: [
-      { type: 'image', placeholder: 'Segmented Image, combined mask', key:'combined_mask', show: true },
-    ],
-  }
-};
+]
+
 
 export default configurations;

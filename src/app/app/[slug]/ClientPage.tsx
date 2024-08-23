@@ -382,18 +382,17 @@ type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
 /**
  * Display the home page
  */
-export default function ClientPage({ slug, configurations }: { slug: Slug, configurations: Configurations }) {
-  let config: Configuration | null;
+export default function ClientPage({ slug, configurations }: { slug: Slug, configurations: Configuration[] }) {
+  let config: Configuration | null = null;
 
   if (configurations) {
-    console.log({configurations})
-    if (slug in configurations) {
-      config = configurations[slug];
-      console.log(config);
+    console.log('ClientPage', { configurations });
+    config = configurations.find(conf => conf.name === slug) || null;
+    if (config) {
+      console.log({config});
     } else {
-      config = null;
       console.error(`Invalid slug (config): ${slug}`);
-      if(slug !== "freshink"
+      if (slug !== "freshink"
         && slug !== "createVideo"
         && slug !== "upscaler"
         && slug !== "hairStyle"
@@ -597,35 +596,36 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
         alert('Please upload the files.');
         return;
       }
-      console.log()
-      // TODO here I can send it like a form Data ...
       if (configurations) { // Check if configurations is not null
-        const formData = new FormData();
-        formData.append(configurations['EVF-SAM'].inputs[0].key, files[0]);
-        formData.append(configurations['EVF-SAM'].inputs[1].key, prompt);
+        const evfSamConfig = configurations.find(conf => conf.name === 'EVF-SAM');
+        if (evfSamConfig) {
+          const formData = new FormData();
+          formData.append(evfSamConfig.inputs[0].key, files[0]);
+          formData.append(evfSamConfig.inputs[1].key, prompt);
 
-        console.log('flag1', {formData});
+          console.log('flag1', {formData});
 
-        const response = await fetch(`/api/app/${slug}`, {
-          method: "POST",
-          body: formData,
-        });
-        if (response.status !== 201) {
-          console.log('err ', {response})
-          setError("error");
-          setLoading(false);
-          return;
-        }
-        console.log('flag2');
-        
-        const responseJSON = await response.json();
-        console.log('flag3', {responseJSON})
+          const response = await fetch(`/api/app/${slug}`, {
+            method: "POST",
+            body: formData,
+          });
+          if (response.status !== 201) {
+            console.log('err ', {response})
+            setError("error");
+            setLoading(false);
+            return;
+          }
+          console.log('flag2');
+          
+          const responseJSON = await response.json();
+          console.log('flag3', {responseJSON})
 
-        console.log({responseJSON});
-        
-        prediction = {
-          state: {
-            output: responseJSON[0].url,
+          console.log({responseJSON});
+          
+          prediction = {
+            state: {
+              output: responseJSON[0].url,
+            }
           }
         }
       }

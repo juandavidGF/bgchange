@@ -6,9 +6,11 @@ export async function GET() {
   try {
     const client = await clientPromise;
     const { collection } = await validateMongoDBConnection(client);
+    
+    const fetchedApps = await collection.find({});
+    const apps = await fetchedApps.toArray();
 
-    const apps = await collection.find({}).toArray();
-
+    console.log('fetched apps', {fetchedApps});
     console.log('get apps', {apps});
 
     return NextResponse.json(apps, { status: 200 });

@@ -15,7 +15,12 @@ export async function POST(request: Request) {
       createdAt: new Date()
     };
 
-    const result = await collection.insertOne(documentToInsert);
+    // Transform keys to strings
+    const transformedDocument = Object.fromEntries(
+      Object.entries(documentToInsert).map(([key, value]) => [String(key), value])
+    );
+
+    const result = await collection.insertOne(transformedDocument);
 
     return NextResponse.json({ message: 'App configuration created', id: result.insertedId }, { status: 201 });
   } catch (error: any) {
