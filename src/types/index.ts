@@ -50,7 +50,7 @@ export type Configuration = {
   model?: `${string}/${string}` | `${string}/${string}:${string}`;
   version?: string | null;
   inputs: InputItem[];
-  outputs: OutputItem[];
+  outputs?: OutputItem[];
 };
 
 export type Configurations = Configuration[];
