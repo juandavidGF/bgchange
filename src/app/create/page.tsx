@@ -6,27 +6,22 @@ import { PlusCircle, X, ChevronDown } from 'lucide-react';
 
 const JsonEditor = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [cursorPosition, setCursorPosition] = useState<number | null>(null);
+  const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
-    const adjustHeight = () => {
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-      }
-    };
-
-    adjustHeight();
-
-    if (textareaRef.current && cursorPosition !== null) {
-      textareaRef.current.setSelectionRange(cursorPosition, cursorPosition);
+    if (textareaRef.current) {
+      textareaRef.current.scrollTop = scrollPositionRef.current;
     }
-  }, [value, cursorPosition]);
+  }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
-    onChange(newValue);
-    setCursorPosition(e.target.selectionStart);
+    onChange(e.target.value);
+  };
+
+  const handleScroll = () => {
+    if (textareaRef.current) {
+      scrollPositionRef.current = textareaRef.current.scrollTop;
+    }
   };
 
   return (
@@ -34,9 +29,8 @@ const JsonEditor = ({ value, onChange }: { value: string; onChange: (value: stri
       ref={textareaRef}
       value={value}
       onChange={handleChange}
-      onKeyDown={() => setCursorPosition(textareaRef.current?.selectionStart || null)}
-      onClick={() => setCursorPosition(textareaRef.current?.selectionStart || null)}
-      className="w-full min-h-[60vh] px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+      onScroll={handleScroll}
+      className="w-full h-[60vh] px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none overflow-auto"
     />
   );
 };
@@ -144,12 +138,12 @@ export default function CreateAppForm() {
     }
 
     try {
-      const response = await fetch('/api/create-app', {
+      const response = await fetch('/api/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ newApp }),
+        body: JSON.stringify(newApp),
       });
 
       if (response.ok) {
