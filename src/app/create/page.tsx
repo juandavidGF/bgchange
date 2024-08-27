@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react'; // Added useRef import
+import { useState, useRef } from 'react';
 import { InputItem, OutputItem, Configuration } from "@/types";
 import { PlusCircle, X, ChevronDown } from 'lucide-react';
 
@@ -17,8 +17,10 @@ export default function CreateAppForm() {
   const [isRawDataStep, setIsRawDataStep] = useState(true);
   const [generatedObject, setGeneratedObject] = useState<Configuration | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [editMode, setEditMode] = useState<'form' | 'json'>('form');
+  const [jsonConfig, setJsonConfig] = useState('');
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null); // Create a ref
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const addInput = () => {
     setInputs([...inputs, { type: 'text', key: '', show: false }]);
@@ -103,8 +105,8 @@ export default function CreateAppForm() {
   const handleRawDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setRawData(e.target.value);
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'; // Reset height
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`; // Set to scroll height
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   };
 
@@ -124,7 +126,7 @@ export default function CreateAppForm() {
     console.log({isReplicate});
 
     if (isReplicate) {
-      const step2Regex = /"([^:]+\/[^:]+):([^"]+)"/; // Adjusted regex to capture model and version
+      const step2Regex = /"([^:]+\/[^:]+):([^"]+)"/;
       const modelMatch = rawData.match(step2Regex);
       console.log("Step 2:", modelMatch ? modelMatch.slice(1) : "No match");
 
@@ -147,7 +149,7 @@ export default function CreateAppForm() {
           const configuration: Configuration = {
             name: model,
             type: 'replicate',
-            model: model as `${string}/${string}`, // Cast model to the expected type
+            model: model as `${string}/${string}`,
             version: version,
             inputs: Object.entries(eval(`(${inputString})`)).map(([key, value]) => ({
               type: typeof value === 'number' ? 'number' : 'text',
@@ -160,14 +162,39 @@ export default function CreateAppForm() {
           console.log("Configuration:", JSON.stringify(configuration, null, 2));
 
           // Update state with the generated object
-          setGeneratedObject(configuration); // Use the created configuration object
+          setGeneratedObject(configuration);
           setIsRawDataStep(false);
+
+          // Update form fields
+          setModel(configuration.model as string);
+          setVersion(configuration.version || null);
+          setAppType(configuration.type);
+          setInputs(configuration.inputs);
         } else {
           console.error("Error: No input object found in raw data. Please check the format.");
         }
       }
     } else {
       console.log("Type not identified as replicate");
+    }
+  };
+
+  const handleJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setJsonConfig(e.target.value);
+  };
+
+  const applyJsonChanges = () => {
+    try {
+      const parsedConfig = JSON.parse(jsonConfig);
+      // Update state with parsed configuration
+      setAppName(parsedConfig.name);
+      setAppType(parsedConfig.type);
+      setInputs(parsedConfig.inputs);
+      setOutputs(parsedConfig.outputs);
+      // ... update other fields as necessary
+    } catch (error) {
+      console.error('Invalid JSON:', error);
+      alert('Invalid JSON configuration');
     }
   };
 
@@ -204,14 +231,14 @@ export default function CreateAppForm() {
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1">Raw Data:</label>
           <textarea
-            ref={textareaRef} // Attach the ref
+            ref={textareaRef}
             value={rawData}
             onChange={handleRawDataChange}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-h-[900px]" // Set max height
-            rows={5} // Set initial rows to 1 for better appearance
+            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-h-[900px]"
+            rows={5}
             placeholder='Paste raw data here...'
           />
-          <div className="flex space-x-2 mt-2"> {/* Add space between buttons */}
+          <div className="flex space-x-2 mt-2">
             <button
               type="button"
               onClick={handleParseRawData}
@@ -221,7 +248,7 @@ export default function CreateAppForm() {
             </button>
             <button
               type="button"
-              onClick={() => setIsRawDataStep(false)} // Skip to the form
+              onClick={() => setIsRawDataStep(false)}
               className="mt-2 px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
             >
               Skip Raw Data
@@ -283,168 +310,199 @@ export default function CreateAppForm() {
           )}
 
           <div>
-            <h3 className="text-lg font-semibold text-gray-200 mb-2">Inputs:</h3>
-            {inputs.map((input, index) => (
-              <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2 flex space-x-2">
-                    <select
-                      value={input.type}
-                      onChange={(e) => updateInput(index, 'type', e.target.value as InputItem['type'])}
-                      className="w-1/3 px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="text">Text</option>
-                      <option value="image">Image</option>
-                      <option value="prompt">Prompt</option>
-                      <option value="checkbox">Checkbox</option>
-                      <option value="number">Number</option>
-                    </select>
-                    <input
-                      type="text"
-                      value={input.key}
-                      onChange={(e) => updateInput(index, 'key', e.target.value)}
-                      placeholder="Key"
-                      className="w-2/3 px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={input.placeholder || ''}
-                    onChange={(e) => updateInput(index, 'placeholder', e.target.value)}
-                    placeholder="Placeholder"
-                    className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="text"
-                    value={input.gradioName || ''}
-                    onChange={(e) => updateInput(index, 'gradioName', e.target.value)}
-                    placeholder="Gradio Name"
-                    className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="text"
-                    value={input.label || ''}
-                    onChange={(e) => updateInput(index, 'label', e.target.value)}
-                    placeholder="Label"
-                    className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="text"
-                    value={input.description || ''}
-                    onChange={(e) => updateInput(index, 'description', e.target.value)}
-                    placeholder="Description"
-                    className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="text"
-                    value={input.value !== undefined ? String(input.value) : ''}
-                    onChange={(e) => updateInput(index, 'value', e.target.value)}
-                    placeholder="Default Value"
-                    className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="text"
-                    value={input.component || ''}
-                    onChange={(e) => updateInput(index, 'component', e.target.value)}
-                    placeholder="Component"
-                    className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <div className="col-span-2 flex items-center justify-between">
-                    <label className="flex items-center space-x-2 text-gray-300">
-                      <input
-                        type="checkbox"
-                        checked={input.show}
-                        onChange={(e) => updateInput(index, 'show', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-blue-500"
-                      />
-                      <span>Show</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => removeInput(index)}
-                      className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-            <button 
-              type="button" 
-              onClick={addInput} 
-              className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 flex items-center justify-center"
-            >
-              <PlusCircle size={20} className="mr-2" />
-              Add Input
-            </button>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold text-gray-200 mb-2">Outputs:</h3>
-            {outputs.map((output, index) => (
-              <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
-                <div className="grid grid-cols-2 gap-4">
-                  <select
-                    value={output.type}
-                    onChange={(e) => updateOutput(index, 'type', e.target.value as OutputItem['type'])}
-                    className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+           <div className="flex space-x-4 mb-4">
+              <button 
+                onClick={() => setEditMode('form')} 
+                className={`px-4 py-2 rounded-md ${editMode === 'form' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'}`}
+              >
+                Form
+              </button>
+              <button 
+                onClick={() => setEditMode('json')} 
+                className={`px-4 py-2 rounded-md ${editMode === 'json' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'}`}
+              >
+                JSON
+              </button>
+            </div>
+            {editMode === 'form' ? (
+              <div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-200 mb-2">Inputs:</h3>
+                  {inputs.map((input, index) => (
+                    <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
+                      <div className="grid grid-cols-2 gap-4">
+                        <select
+                          value={input.type}
+                          onChange={(e) => updateInput(index, 'type', e.target.value as InputItem['type'])}
+                          className="w-full px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                        >
+                          <option value="text">Text</option>
+                          <option value="image">Image</option>
+                          <option value="prompt">Prompt</option>
+                          <option value="checkbox">Checkbox</option>
+                          <option value="number">Number</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={input.key}
+                          onChange={(e) => updateInput(index, 'key', e.target.value)}
+                          placeholder="Key"
+                          className="w-full px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                        />
+                        {input.show && (
+                          <>
+                            <input
+                              type="text"
+                              value={input.placeholder || ''}
+                              onChange={(e) => updateInput(index, 'placeholder', e.target.value)}
+                              placeholder="Placeholder"
+                              className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <input
+                              type="text"
+                              value={input.gradioName || ''}
+                              onChange={(e) => updateInput(index, 'gradioName', e.target.value)}
+                              placeholder="Gradio Name"
+                              className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <input
+                              type="text"
+                              value={input.label || ''}
+                              onChange={(e) => updateInput(index, 'label', e.target.value)}
+                              placeholder="Label"
+                              className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <input
+                              type="text"
+                              value={input.description || ''}
+                              onChange={(e) => updateInput(index, 'description', e.target.value)}
+                              placeholder="Description"
+                              className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <input
+                              type="text"
+                              value={input.component || ''}
+                              onChange={(e) => updateInput(index, 'component', e.target.value)}
+                              placeholder="Component"
+                              className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                          </>
+                        )}
+                        <input
+                          type="text"
+                          value={input.value !== undefined ? String(input.value) : ''}
+                          onChange={(e) => updateInput(index, 'value', e.target.value)}
+                          placeholder="Default Value"
+                          className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                        />
+                        <div className="col-span-2 flex items-center justify-between">
+                          <label className="flex items-center space-x-2 text-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={input.show}
+                              onChange={(e) => updateInput(index, 'show', e.target.checked)}
+                              className="form-checkbox h-5 w-5 text-blue-500"
+                            />
+                            <span>Show</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeInput(index)}
+                            className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button 
+                    type="button" 
+                    onClick={addInput} 
+                    className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 flex items-center justify-center"
                   >
-                    <option value="text">Text</option>
-                    <option value="image">Image</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={output.key}
-                    onChange={(e) => updateOutput(index, 'key', e.target.value)}
-                    placeholder="Key"
-                    className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    type="text"
-                    value={output.placeholder || ''}
-                    onChange={(e) => updateOutput(index, 'placeholder', e.target.value)}
-                    placeholder="Placeholder"
-                    className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center space-x-2 text-gray-300">
-                      <input
-                        type="checkbox"
-                        checked={output.show}
-                        onChange={(e) => updateOutput(index, 'show', e.target.checked)}
-                        className="form-checkbox h-5 w-5 text-blue-500"
-                      />
-                      <span>Show</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => removeOutput(index)}
-                      className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
+                    <PlusCircle size={20} className="mr-2" />
+                    Add Input
+                  </button>
                 </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-200 mb-2">Outputs:</h3>
+                  {outputs.map((output, index) => (
+                    <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
+                      <div className="grid grid-cols-2 gap-4">
+                        <select
+                          value={output.type}
+                          onChange={(e) => updateOutput(index, 'type', e.target.value as OutputItem['type'])}
+                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                        >
+                          <option value="text">Text</option>
+                          <option value="image">Image</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={output.key}
+                          onChange={(e) => updateOutput(index, 'key', e.target.value)}
+                          placeholder="Key"
+                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                        />
+                        <input
+                          type="text"
+                          value={output.placeholder || ''}
+                          onChange={(e) => updateOutput(index, 'placeholder', e.target.value)}
+                          placeholder="Placeholder"
+                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                        />
+                        <div className="flex items-center justify-between">
+                          <label className="flex items-center space-x-2 text-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={output.show}
+                              onChange={(e) => updateOutput(index, 'show', e.target.checked)}
+                              className="form-checkbox h-5 w-5 text-blue-500"
+                            />
+                            <span>Show</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeOutput(index)}
+                            className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button 
+                    type="button" 
+                    onClick={addOutput} 
+                    className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 flex items-center justify-center"
+                  >
+                    <PlusCircle size={20} className="mr-2" />
+                    Add Output
+                  </button>
+                </div>
+                <button 
+                  type="submit" 
+                  className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isRawDataStep || !isFormValid()}
+                >
+                  Create App
+                </button>
               </div>
-            ))}
-            <button 
-              type="button" 
-              onClick={addOutput} 
-              className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 flex items-center justify-center"
-            >
-              <PlusCircle size={20} className="mr-2" />
-              Add Output
-            </button>
+            ) : (
+              <div>
+                <textarea
+                value={jsonConfig}
+                onChange={handleJsonChange}
+                className="w-full h-64 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white"
+                />
+                <button type="button" onClick={applyJsonChanges} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-md">
+                  Apply JSON Changes
+                </button>
+              </div>
+            )}
           </div>
-
-          <button 
-            type="submit" 
-            className="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isRawDataStep || !isFormValid()}
-          >
-            Create App
-          </button>
         </>
       )}
 
