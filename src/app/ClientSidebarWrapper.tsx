@@ -9,7 +9,7 @@ type ClientSidebarWrapperProps = {
 
 export default function ClientSidebarWrapper({ children }: ClientSidebarWrapperProps) {
   const pathname = usePathname();
-  const showSidebar = !pathname.startsWith('/create-app');
+  const showSidebar = !pathname.startsWith('/create');
 
   if (!showSidebar) {
     return null;

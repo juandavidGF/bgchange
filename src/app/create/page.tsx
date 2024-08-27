@@ -13,6 +13,7 @@ export default function CreateAppForm() {
   const [client, setClient] = useState('');
   const [model, setModel] = useState('');
   const [version, setVersion] = useState<string | null>(null);
+  const [rawData, setRawData] = useState('');
 
   const addInput = () => {
     setInputs([...inputs, { type: 'text', key: '', show: false }]);
@@ -79,7 +80,7 @@ export default function CreateAppForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name: appName, ...newApp }),
+        body: JSON.stringify({ newApp }),
       });
 
       if (response.ok) {
@@ -92,6 +93,11 @@ export default function CreateAppForm() {
       console.error('Error creating app:', error);
       alert('An error occurred while creating the app');
     }
+  };
+
+  const handleRawDataChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setRawData(e.target.value);
+    // Add parsing logic here to extract model, version, and inputs
   };
 
   return (
@@ -326,6 +332,17 @@ export default function CreateAppForm() {
           <PlusCircle size={20} className="mr-2" />
           Add Output
         </button>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-1">Raw Data:</label>
+        <textarea
+          value={rawData}
+          onChange={handleRawDataChange}
+          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows={4}
+          placeholder='Paste raw data here...'
+        />
       </div>
 
       <button 

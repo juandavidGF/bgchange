@@ -23,14 +23,15 @@ export async function POST(
 
   try {
 
-    if (slug  === 'EVF-SAM' && configurations[slug]) {
+    if (slug  === 'EVF-SAM' && configurations.find(conf => conf.name === 'EVF-SAM')) {
+      const conf = configurations.find(conf => conf.name === 'EVF-SAM');
       console.log('flag1');
-      const config = configurations[slug];
+      const config = configurations.find(conf => conf.name === 'EVF-SAM');
       const formData = await request.formData();
       console.log('flag1.1');
 
-      const image = formData.get(configurations['EVF-SAM'].inputs[0].key) as File | null;
-      const prompt = formData.get(configurations['EVF-SAM'].inputs[1].key) as String | null;
+      const image = formData.get(conf.inputs[0].key) as File | null;
+      const prompt = formData.get(conf.inputs[1].key) as String | null;
 
       console.log('flag1.2', {image, prompt});
 
