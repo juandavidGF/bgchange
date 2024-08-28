@@ -43,7 +43,7 @@ const AppList = () => {
             <InfoItem label="Model" value={app.model ?? 'N/A'} />
             <InfoItem label="Version" value={app.version ?? 'N/A'} />
             <InfoItem label="Inputs" value={app.inputs.map(input => input.key).join(', ')} />
-            <InfoItem label="Outputs" value={app.outputs.map(output => output.key).join(', ')} />
+            <InfoItem label="Outputs" value={app.outputs ? app.outputs.map(output => output.key).join(', ') : 'N/A'} />
           </div>
         </div>
       ))}
