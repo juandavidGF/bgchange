@@ -22,7 +22,6 @@ export async function POST(
   // );
 
   try {
-
     if (slug  === 'EVF-SAM' && configurations.find(conf => conf.name === 'EVF-SAM')) {
       const conf = configurations.find(conf => conf.name === 'EVF-SAM');
       console.log('flag1');
@@ -30,6 +29,9 @@ export async function POST(
       const formData = await request.formData();
       console.log('flag1.1');
 
+      if (!conf) {
+        throw new Error("Configuration not found for the specified slug.");
+      }
       const image = formData.get(conf.inputs[0].key) as File | null;
       const prompt = formData.get(conf.inputs[1].key) as String | null;
 
@@ -42,6 +44,9 @@ export async function POST(
         );
       }
 
+      if (!config) {
+        throw new Error("Configuration not found for the specified slug.");
+      }
       
       const imageBuffer = await image.arrayBuffer();
       console.log('flag2', config.client, config.path);
@@ -66,13 +71,13 @@ export async function POST(
         output.data,
         { status: 201 }
       );
-    } else if(configurations[slug]) {
+    } else if (configurations.find(conf => conf.name === slug)) {
       const req = await request.json();
-      const config = configurations[slug];
+      const config = configurations.find(conf => conf.name === slug);
 
       let indImg = 0;
 
-      if (config.type === 'replicate') {
+      if (config && config.type === 'replicate') {
         const replicate = new Replicate({
           auth: REPLICATE_API_TOKEN,
         });
@@ -143,7 +148,7 @@ export async function POST(
           output,
           { status: 201 }
         );
-      } else if (config.type === 'gradio') {
+      } else if (config && config.type === 'gradio') {
         const params = config.inputs.map(item => {
           if(item.show) {
             if(item.type === 'image') {
