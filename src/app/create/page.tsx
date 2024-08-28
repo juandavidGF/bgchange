@@ -452,11 +452,11 @@ export default function CreateApp() {
                         onChange={(e) => updateInput(index, 'type', e.target.value as InputItem['type'])}
                         className="w-full px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
                       >
-                        <option value="text">Text</option>
                         <option value="image">Image</option>
                         <option value="prompt">Prompt</option>
                         <option value="checkbox">Checkbox</option>
                         <option value="number">Number</option>
+                        <option value="video">Video</option>
                       </select>
                       <input
                         type="text"

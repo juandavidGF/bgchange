@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Configurations } from '@/types'; // Adjust the import path as necessary
-import configurationObj  from '@/common/configuration';
+import {getConfigurations} from '@/common/configuration';
 import { useRouter } from 'next/navigation';
 
 const AppList = () => {
@@ -12,14 +12,10 @@ const AppList = () => {
   useEffect(() => {
     const fetchApps = async () => {
       try {
-        const response = await fetch('/api/create/get');
-        const data = await response.json();
         // Combine fetched apps with configurationObj
-        setApps([...data, ...configurationObj]);
+        setApps(await getConfigurations());
       } catch (error) {
         console.error('Error fetching apps:', error);
-        // If fetch fails, use only configurationObj
-        setApps(configurationObj);
       }
     };
 

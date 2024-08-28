@@ -28,7 +28,12 @@ export async function POST(
       auth: process.env.REPLICATE_API_TOKEN as string,
     });
   
-    const state = await replicate.predictions.get(id);
+    // const state = await replicate.predictions.get(id);
+
+    const state = {
+      id: "wds8qv2e5hrj20chkc8vmp60vc",
+      status: "succeeded",
+    }
   
     console.log({state});
     return NextResponse.json({ state }, { status: 201 });

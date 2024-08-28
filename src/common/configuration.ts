@@ -1,6 +1,6 @@
 import { Configurations } from "@/types";
 
-const configurations: Configurations = [
+const configurationsObj: Configurations = [
   {
     name: 'tryon',
     type: 'gradio',
@@ -52,5 +52,23 @@ const configurations: Configurations = [
   },
 ]
 
+// New function to fetch configurations
+async function fetchConfigurations() {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/create/get`, { next: { revalidate: 3600 } });
+    if (!response.ok) throw new Error('Failed to fetch configurations');
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching configurations:', error);
+    return null;
+  }
+}
 
-export default configurations;
+// Combine local configurations with fetched configurations
+async function getConfigurations(): Promise<Configurations> {
+  const fetchedConfigurations = await fetchConfigurations();
+  return fetchedConfigurations ? [...configurationsObj, ...fetchedConfigurations] : configurationsObj;
+}
+
+export  {getConfigurations};

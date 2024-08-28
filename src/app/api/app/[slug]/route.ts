@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
 import { Slug } from '@/types';
 import { Configurations } from "@/types";
-import configurations from '@/common/configuration';
+import {getConfigurations} from '@/common/configuration';
 import { Client, handle_file } from "@gradio/client";
 
 type Status = "successful" | "failed" | "canceled";
@@ -14,12 +14,11 @@ export async function POST(
   request: Request,
   { params }: { params: { slug: Slug } },
 ) {
-  
   const slug = params.slug;
 
-  // return NextResponse.json(
-  //   { status: 201 }
-  // );
+  console.log({slug});
+
+  const configurations = await getConfigurations();
 
   try {
     if (slug  === 'EVF-SAM' && configurations.find(conf => conf.name === 'EVF-SAM')) {
@@ -139,7 +138,7 @@ export async function POST(
           console.log(`api/[${slug}] !output`, {output});
           console.log('Something went wrong');
           return NextResponse.json(
-            { error: 'Something went wrong' },
+            { error: 'Something went wrong, api not response output' },
             { status: 500 }
           );
         }
@@ -181,14 +180,14 @@ export async function POST(
 
         
       }
-    } else {
-      if(slug !== 'freshink' 
+    } else if (slug !== 'freshink' 
         && slug !== 'createVideo'
         && slug !== "hairStyle"
         && slug !== "livePortrait"
         && slug !== "upscaler"
-        && slug !== 'tryon'
-      ) return NextResponse.json(
+        && slug !== 'tryon')
+    {
+      return NextResponse.json(
         { error: `Something went wrong, api, slug ${slug} not found` },
         { status: 500 }
       );

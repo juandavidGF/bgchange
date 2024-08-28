@@ -388,7 +388,7 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
     console.log('ClientPage', { configurations });
     config = configurations.find(conf => conf.name === slug) || null;
     if (config) {
-      console.log({config});
+      // console.log({config});
     } else {
       console.error(`Invalid slug (config): ${slug}`);
       if (slug !== "freshink"
@@ -641,11 +641,13 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
         },
         body: JSON.stringify(params),
       });
+
+      console.log({genA});
   
       const {id} = await genA.json();
   
-      if (id.error) {
-        setError(id.error);
+      if (!genA.ok) {
+        setError(genA.statusText);
         setLoading(false);
         return;
       }
@@ -727,6 +729,7 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
             {config?.inputs.map((item: InputItem, index: number) => {
               if (('show' in item) && item['show']) {
                 const { type } = item;
+                console.log({item}, {type});
                 switch (type) {
                   case 'image':
                     const Img = !files[contImg] ? 
@@ -759,7 +762,7 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
                         setPrompt={setPrompt}
                       />)
                   default:
-                    return <div>no supported</div>;
+                    return <div>no supported {type}</div>;
                 }
               }
             })}
