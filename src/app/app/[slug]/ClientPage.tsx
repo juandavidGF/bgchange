@@ -676,23 +676,33 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
       if (status === 'failed') throw Error("status failed");
       prediction = result;
     }
-    
 
-
-    config?.outputs.forEach((item: OutputItem) => {
-      const {type} = item;
-      if (type === 'image') {
-        if(typeof prediction.state.output === 'string') {
-          setOutputImage(prediction.state.output);
-        } else {
-          const key = config?.outputs[0].key;
-          setOutputImage(prediction.state.output[key]);
+    if (config && config.outputs) {
+      config.outputs.forEach((item: OutputItem) => {
+        const {type} = item;
+        if (type === 'image') {
+          if(typeof prediction.state.output === 'string') {
+            setOutputImage(prediction.state.output);
+          } else {
+            if (config?.outputs && config.outputs.length > 0) {
+              const key = config.outputs[0].key;
+              setOutputImage(prediction.state.output[key]);
+            } else {
+              console.error('Invalid key');
+              throw Error('Invalid key');
+            }
+          }
+        } else if (type === 'video') {
+          if (config?.outputs && config.outputs.length > 0) {
+            const key = config.outputs[0].key;
+            setOutputVideo(prediction.state.output[key]);
+          } else {
+            console.error('Invalid key');
+            throw Error('Invalid key');
+          }
         }
-      } else if (type === 'video') {
-        const key = config?.outputs[0].key;
-        setOutputVideo(prediction.state.output[key]);
-      }
-    })
+      })
+    }
 
     if(model.output.video) {
       console.log({prediction});
@@ -840,7 +850,7 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
         <div className="flex flex-col w-1/2">
           <h1 className="mx-auto">Output</h1>
           <section className="mx-4 mt-9 flex flex-col gap-4">
-            {config?.outputs.map((item: OutputItem, index: number) => {
+            {config && config.outputs && config.outputs.map((item: OutputItem, index: number) => {
               if (('show' in item) && item['show']) {
                 if(item.type === 'image') { 
                   return <ImageOutput
