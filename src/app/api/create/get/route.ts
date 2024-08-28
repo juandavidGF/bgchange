@@ -10,12 +10,9 @@ export async function GET() {
     const fetchedApps = await collection.find({});
     const apps = await fetchedApps.toArray();
 
-    console.log('fetched apps', {fetchedApps});
-    console.log('get apps', {apps});
-
     return NextResponse.json(apps, { status: 200 });
   } catch (error: any) {
-    console.error('Error in GET /api/get-apps:', error);
+    console.error('Error in GET /api/create/get:', error);
     return NextResponse.json({ message: 'Error fetching app configurations', error: error.message }, { status: 500 });
   }
 }

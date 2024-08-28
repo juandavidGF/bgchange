@@ -9,7 +9,7 @@ import configurationObj from '@/common/configuration';
 async function getConfigurations() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/create-app/get`, { next: { revalidate: 3600 } });
+    const response = await fetch(`${baseUrl}/api/create/get`, { next: { revalidate: 3600 } });
     if (!response.ok) throw new Error('Failed to fetch configurations');
     return response.json();
   } catch (error) {
@@ -22,11 +22,11 @@ export default async function Page({ params }: { params: { slug: Slug } }) {
 
   const configurations = [...configurationObj, ...(await getConfigurations())];
 
+  console.log({configurations});
+
   if (!configurations) {
     return notFound();
   }
-
-
 
   return (
     <Suspense fallback={<div>Loading...</div>}>

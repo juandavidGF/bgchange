@@ -12,7 +12,7 @@ const AppList = () => {
   useEffect(() => {
     const fetchApps = async () => {
       try {
-        const response = await fetch('/api/create-app/get');
+        const response = await fetch('/api/create/get');
         const data = await response.json();
         // Combine fetched apps with configurationObj
         setApps([...data, ...configurationObj]);

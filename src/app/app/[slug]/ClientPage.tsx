@@ -2,7 +2,7 @@
 
 import Dropzone from "react-dropzone";
 import { saveAs } from "file-saver";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FileRejection } from "react-dropzone";
 import { ThreeDots } from "react-loader-spinner";
 import { FaTrashAlt } from "react-icons/fa";
@@ -11,9 +11,8 @@ import { XCircleIcon } from "@heroicons/react/20/solid";
 import { PhotoIcon, FaceSmileIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import { SelectMenu } from "@/app/selectmenu";
-import { Configuration, Configurations, ImageAreaProps, InputItem, OutputItem } from "@/types";
+import { Configuration, ImageAreaProps, InputItem, OutputItem } from "@/types";
 import { sleep } from "@/utils";
-import configurationObj from "@/common/configuration";
 import { Prompt } from "@/components/prompt";
 
 type ErrorNotificationProps = {
