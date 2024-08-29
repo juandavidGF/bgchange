@@ -23,7 +23,7 @@ export type ImageAreaProps = {
 export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | "tryon"  | "EVF-SAM";
 
 export type InputItem = {
-  type: 'text' | 'image' | 'prompt' | 'checkbox' | 'number' | 'video';
+  type: 'string' | 'array' | 'number' | 'boolean';
   key: string;
   placeholder?: string;
   gradioName?: string;
@@ -31,7 +31,8 @@ export type InputItem = {
   label?: string;
   description?: string;
   value?: any;
-  component?: string;
+  component?: 'image' | 'prompt' | 'checkbox' | 'number' | 'video';
+  required?: boolean;
 };
 
 export type OutputItem = {

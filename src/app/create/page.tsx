@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { InputItem, OutputItem, Configuration } from "@/types";
 import { PlusCircle, X, ChevronDown, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { getConfigurations } from '@/common/configuration';
 
 const JsonEditor = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -40,13 +41,13 @@ export default function CreateApp() {
   const router = useRouter();
 
   const [isRawDataStep, setIsRawDataStep] = useState(true);
+  const [appType, setAppType] = useState<'gradio' | 'replicate'>('replicate');
   const [rawData, setRawData] = useState('');
   const [modelUrl, setModelUrl] = useState('');
-  const [modelData, setModelData] = useState<any>(null); // Adjust type as needed
+  const [modelData, setModelData] = useState<any>(null);
   const [editMode, setEditMode] = useState<'form' | 'json'>('form');
   const [jsonConfig, setJsonConfig] = useState('');
   const [appName, setAppName] = useState('');
-  const [appType, setAppType] = useState<'gradio' | 'replicate'>('replicate');
   const [inputs, setInputs] = useState<InputItem[]>([]);
   const [outputs, setOutputs] = useState<OutputItem[]>([]);
   const [path, setPath] = useState('/predict');
@@ -57,7 +58,9 @@ export default function CreateApp() {
   const [errorMessage, setErrorMessage] = useState('');
   const [modelDetails, setModelDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [configurations, setConfigurations] = useState<any[]>([]); // Add this line to define configurations
+  const [configurations, setConfigurations] = useState<any[]>([]);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null); // State for loading message
+  const [successMessage, setSuccessMessage] = useState<string | null>(null); // State for success message
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -88,32 +91,25 @@ export default function CreateApp() {
   }, [appName, appType, client, path, model, version, inputs, outputs]);
 
   useEffect(() => {
-    // Set default values based on configurations when the component mounts
     if (configurations.length > 0) {
       const initialInputs = configurations[0].inputs.map((input: InputItem) => ({
         ...input,
-        type: input.type === 'image' ? 'image' : 
-              input.type === 'prompt' ? 'prompt' :
-              input.type === 'checkbox' ? 'checkbox' :
-              input.type === 'number' ? 'number' :
-              input.type === 'video' ? 'video' : 'text'
+        type: input.type === 'string' ? 'string' : 'array' // Adjusted to only check for 'string' and 'array'
       }));
       setInputs(initialInputs);
     }
   }, [configurations]);
 
   const handleInputChange = (index: number, field: keyof InputItem, value: any) => {
-    const newInputs = [...inputs];
-    newInputs[index] = { ...newInputs[index], [field]: value };
-
-    // Update the JSON configuration to match the form input
-    setJsonConfig(JSON.stringify(newInputs, null, 2));
-
-    setInputs(newInputs);
+    setInputs(prevInputs => {
+      const updatedInputs = [...prevInputs];
+      updatedInputs[index] = { ...updatedInputs[index], [field]: value };
+      return updatedInputs;
+    });
   };
 
   const addInput = () => {
-    setInputs([...inputs, { type: 'text', key: '', show: false }]);
+    setInputs([...inputs, { type: 'string', key: '', show: false }]); // Changed 'text' to 'string'
   };
 
   const addOutput = () => {
@@ -182,8 +178,18 @@ export default function CreateApp() {
 
       if (response.ok) {
         alert('App created successfully!');
-        // Directly navigate to the new app page
-        router.push(`/app/${appName}`);
+        const checkAppExists = async () => {
+          const res = await fetch(`/api/app/${appName}`);
+          return res.ok;
+        };
+
+        const interval = setInterval(async () => {
+          const exists = await checkAppExists();
+          if (exists) {
+            clearInterval(interval);
+            router.push(`/app/${appName}`);
+          }
+        }, 1000);
       } else {
         alert('Failed to create app');
       }
@@ -204,10 +210,8 @@ export default function CreateApp() {
   const handleParseRawData = () => {
     console.log({rawData});
     
-    // Reset error message
     setErrorMessage('');
 
-    // Check if it's a replicate run
     const isReplicate = /\breplicate\.run\(/.test(rawData);
     if (!isReplicate) {
       setErrorMessage('Invalid format for Replicate raw data. Please check your input.');
@@ -221,12 +225,10 @@ export default function CreateApp() {
       const modelMatch = rawData.match(step2Regex);
       console.log("Step 2:", modelMatch ? modelMatch.slice(1) : "No match");
 
-      // Extract model and version
       if (modelMatch) {
         const model = modelMatch[1];
         const version = modelMatch[2];
         
-        // Step 3: Match the input object
         const step3Regex = /input:\s*({[\s\S]*?})\s*}/;
         const inputMatch = rawData.match(step3Regex);
         console.log("Step 3:", inputMatch ? "Input object found" : "No input object");
@@ -236,29 +238,28 @@ export default function CreateApp() {
 
           const inputString = inputMatch[1];
 
-          // Step 4: Create the configuration object directly
           const configuration: Configuration = {
             name: model,
             type: 'replicate',
             model: model as `${string}/${string}`,
             version: version,
-            inputs: Object.entries(eval(`(${inputString})`)).map(([key, value]) => ({
-              type: typeof value === 'number' ? 'number' : 'text',
+            inputs: Object.entries(eval(`(${inputString})`)).map(([key, value]: [string, any]) => ({
+              type: Array.isArray(value) ? 'array' : typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : 'string',
               key,
-              value,
-              show: false
+              value: value as any, // Explicitly cast value to any
+              show: false,
+              required: value.required || false
             }))
           };
 
           console.log("Configuration:", JSON.stringify(configuration, null, 2));
 
-          // Update state with the generated object
           setAppName(configuration.name);
           setAppType(configuration.type);
           setModel(configuration.model as string);
           setVersion(configuration.version || null);
           setInputs(configuration.inputs);
-          setIsRawDataStep(false); // Automatically move to the next step
+          setIsRawDataStep(false);
         } else {
           console.error("Error: No input object found in raw data. Please check the format.");
         }
@@ -311,8 +312,6 @@ export default function CreateApp() {
       }
       const data = await response.json();
       setModelData(data);
-      // You can also update other states based on the fetched data
-      // For example, if the data contains inputs and outputs, you can set them here
     } catch (error) {
       console.error('Error fetching model:', error);
       alert('Error fetching model data. Please check the URL and try again.');
@@ -330,6 +329,9 @@ export default function CreateApp() {
     if (appType !== 'replicate' || !model || !version) return;
 
     setIsLoading(true);
+    setLoadingMessage('Fetching model details...'); // Set loading message
+    setSuccessMessage(null); // Clear previous success message
+
     try {
       const response = await fetch('/api/create/fetch-model-details', {
         method: 'POST',
@@ -341,41 +343,75 @@ export default function CreateApp() {
 
       const data = await response.json();
 
-      console.log({data});
-      
+      console.log({ data });
+
       const newInputs: InputItem[] = Object.entries(data.inputs).map(([key, value]: [string, any]) => ({
-        type: value.type === 'integer' ? 'number' : (value.type === 'boolean' ? 'checkbox' : 'text'),
+        type: value.type, // Use the type from the API directly
         key,
-        show: false, // Set show to false by default
+        show: value.show || false, // Use the API value for 'show'
         placeholder: value.description || '',
         label: value.title || key,
         description: value.description || '',
-        value: value.default !== undefined ? value.default : null, // Preserve default value
+        value: value.default !== undefined ? value.default : '', // Set to empty string if null
+        required: value.required || false
       }));
 
-      // Ensure 'image' type is set correctly
-      const correctedInputs = newInputs.map(input => ({
-        ...input,
-        type: input.key.toLowerCase().includes('image') ? 'image' : input.type,
-      }));
-
-      setInputs(correctedInputs);
+      setInputs(newInputs);
 
       const newOutputs: OutputItem[] = [{
         type: data.outputs.type,
-        key: data.outputs.title || '', // Assuming key is available in items
+        key: data.outputs.title || '',
         show: true,
         placeholder: data.outputs.title || 'Generated output',
-        format: data.outputs.items.format, // Preserve format if needed
+        format: data.outputs.items.format,
       }];
 
       setOutputs(newOutputs);
-      setIsRawDataStep(false); // Automatically move to the next step
+      setIsRawDataStep(false);
+      setSuccessMessage('Model details fetched successfully!'); // Set success message
     } catch (error: any) {
       console.error('Error fetching model details:', error);
       alert(`Failed to fetch model details. Please check the model and version. ${error.message}`);
     } finally {
       setIsLoading(false);
+      setLoadingMessage(null); // Clear loading message
+    }
+  };
+
+  const fetchConfigurations = async () => {
+    setIsLoading(true);
+    try {
+      const timestamp = Date.now();
+      const configurations = await getConfigurations(true);
+      // Handle configurations as needed
+    } catch (error) {
+      console.error('Error fetching configurations:', error);
+      alert('Failed to fetch configurations.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    setIsRawDataStep(true);
+    fetchConfigurations();
+  };
+
+  // Component to render inputs dynamically
+  const renderInput = (input: InputItem) => {
+    switch (input.type) {
+      case 'string':
+        return <input type="text" value={input.value || ''} placeholder={input.placeholder} />;
+      case 'array':
+        return (
+          <select multiple>
+            {/* Populate options based on your needs */}
+            <option value="uri">URI</option>
+            {/* Add more options as needed */}
+          </select>
+        );
+      default:
+        return null;
     }
   };
 
@@ -562,166 +598,203 @@ export default function CreateApp() {
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                  {appType === 'replicate' && (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={fetchModelDetails}
+                        className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                      >
+                        Re-fetch Model Details
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div>
-                <h3 className="text-lg font-semibold text-gray-200 mb-2">Inputs:</h3>
-                {inputs.map((input, index) => (
-                  <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
-                    <div className="grid grid-cols-2 gap-4">
-                      <select
-                        value={input.type}
-                        onChange={(e) => handleInputChange(index, 'type', e.target.value)}
-                        className="w-full px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
-                      >
-                        <option value="image">Image</option>
-                        <option value="prompt">Prompt</option>
-                        <option value="checkbox">Checkbox</option>
-                        <option value="number">Number</option>
-                        <option value="video">Video</option>
-                      </select>
-                      <input
-                        type="text"
-                        value={input.key}
-                        onChange={(e) => updateInput(index, 'key', e.target.value)}
-                        placeholder="Key"
-                        className="w-full px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
-                      />
-                      <div className="col-span-2 flex items-center justify-between">
-                        <label className="flex items-center space-x-2 text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={input.show}
-                            onChange={(e) => updateInput(index, 'show', e.target.checked)}
-                            className="form-checkbox h-5 w-5 text-blue-500"
-                          />
-                          <span>Show</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => removeInput(index)}
-                          className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-                        >
-                          <X size={20} />
-                        </button>
-                      </div>
-                      {input.show && (
-                        <>
+              {/* Show loading message */}
+              {loadingMessage && <div className="text-yellow-300">{loadingMessage}</div>}
+
+              {/* Hide inputs and outputs while loading */}
+              {isLoading ? (
+                <div className="text-gray-300">Loading...</div>
+              ) : (
+                <>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-200 mb-2">Inputs:</h3>
+                    {inputs.map((input, index) => (
+                      <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
+                        <div className="grid grid-cols-2 gap-4">
+                          <select
+                            value={input.type}
+                            onChange={(e) => handleInputChange(index, 'type', e.target.value as InputItem['type'])}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                          >
+                            <option value="string">String</option>
+                            <option value="array">Array</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                          </select>
                           <input
                             type="text"
-                            value={input.placeholder || ''}
-                            onChange={(e) => updateInput(index, 'placeholder', e.target.value)}
+                            value={input.key}
+                            onChange={(e) => handleInputChange(index, 'key', e.target.value)}
+                            placeholder="Key"
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-2">
+                          <input
+                            type="text"
+                            value={input.value || ''}
+                            onChange={(e) => handleInputChange(index, 'value', e.target.value)}
+                            placeholder="Value"
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                          />
+                          <div className="flex items-center justify-between">
+                            <label className="flex items-center space-x-2 text-gray-300">
+                              <input
+                                type="checkbox"
+                                checked={input.show}
+                                onChange={(e) => handleInputChange(index, 'show', e.target.checked)}
+                                className="form-checkbox h-5 w-5 text-blue-500"
+                              />
+                              <span>Show</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => removeInput(index)}
+                              className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
+                        </div>
+                        {input.show && (
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <input
+                              type="text"
+                              value={input.placeholder || ''}
+                              onChange={(e) => handleInputChange(index, 'placeholder', e.target.value)}
+                              placeholder="Placeholder"
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <input
+                              type="text"
+                              value={input.gradioName || ''}
+                              onChange={(e) => handleInputChange(index, 'gradioName', e.target.value)}
+                              placeholder="Gradio Name"
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <input
+                              type="text"
+                              value={input.label || ''}
+                              onChange={(e) => handleInputChange(index, 'label', e.target.value)}
+                              placeholder="Label"
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <input
+                              type="text"
+                              value={input.description || ''}
+                              onChange={(e) => handleInputChange(index, 'description', e.target.value)}
+                              placeholder="Description"
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <select
+                              value={input.component || ''}
+                              onChange={(e) => handleInputChange(index, 'component', e.target.value)}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            >
+                              <option value="">Select Component</option>
+                              <option value="image">Image</option>
+                              <option value="prompt">Prompt</option>
+                              <option value="checkbox">Checkbox</option>
+                              <option value="number">Number</option>
+                              <option value="video">Video</option>
+                            </select>
+                            <label className="flex items-center space-x-2 text-gray-300">
+                              <input
+                                type="checkbox"
+                                checked={input.required || false}
+                                onChange={(e) => handleInputChange(index, 'required', e.target.checked)}
+                                className="form-checkbox h-5 w-5 text-blue-500"
+                              />
+                              <span>Required</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <button 
+                      type="button" 
+                      onClick={addInput} 
+                      className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 flex items-center justify-center"
+                    >
+                      <PlusCircle size={20} className="mr-2" />
+                      Add Input
+                    </button>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-200 mb-2">Outputs:</h3>
+                    {outputs.map((output, index) => (
+                      <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
+                        <div className="grid grid-cols-2 gap-4">
+                          <select
+                            value={output.type}
+                            onChange={(e) => updateOutput(index, 'type', e.target.value as OutputItem['type'])}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                          >
+                            <option value="text">Text</option>
+                            <option value="image">Image</option>
+                            <option value="array">Array</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={output.key}
+                            onChange={(e) => updateOutput(index, 'key', e.target.value)}
+                            placeholder="Key"
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                          />
+                          <input
+                            type="text"
+                            value={output.placeholder || ''}
+                            onChange={(e) => updateOutput(index, 'placeholder', e.target.value)}
                             placeholder="Placeholder"
-                            className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                           />
-                          <input
-                            type="text"
-                            value={input.gradioName || ''}
-                            onChange={(e) => updateInput(index, 'gradioName', e.target.value)}
-                            placeholder="Gradio Name"
-                            className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
-                          />
-                          <input
-                            type="text"
-                            value={input.label || ''}
-                            onChange={(e) => updateInput(index, 'label', e.target.value)}
-                            placeholder="Label"
-                            className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
-                          />
-                          <input
-                            type="text"
-                            value={input.description || ''}
-                            onChange={(e) => updateInput(index, 'description', e.target.value)}
-                            placeholder="Description"
-                            className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
-                          />
-                          <input
-                            type="text"
-                            value={input.component || ''}
-                            onChange={(e) => updateInput(index, 'component', e.target.value)}
-                            placeholder="Component"
-                            className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
-                          />
-                        </>
-                      )}
-                      <input
-                        type="text"
-                        value={input.value !== undefined ? String(input.value) : ''}
-                        onChange={(e) => updateInput(index, 'value', e.target.value)}
-                        placeholder="Default Value"
-                        className="px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
-                      />
-                    </div>
-                  </div>
-                ))}
-                <button 
-                  type="button" 
-                  onClick={addInput} 
-                  className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 flex items-center justify-center"
-                >
-                  <PlusCircle size={20} className="mr-2" />
-                  Add Input
-                </button>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-200 mb-2">Outputs:</h3>
-                {outputs.map((output, index) => (
-                  <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
-                    <div className="grid grid-cols-2 gap-4">
-                      <select
-                        value={output.type}
-                        onChange={(e) => updateOutput(index, 'type', e.target.value as OutputItem['type'])}
-                        className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                      >
-                        <option value="text">Text</option>
-                        <option value="image">Image</option>
-                        <option value="array">Array</option>
-                      </select>
-                      <input
-                        type="text"
-                        value={output.key}
-                        onChange={(e) => updateOutput(index, 'key', e.target.value)}
-                        placeholder="Key"
-                        className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                      />
-                      <input
-                        type="text"
-                        value={output.placeholder || ''}
-                        onChange={(e) => updateOutput(index, 'placeholder', e.target.value)}
-                        placeholder="Placeholder"
-                        className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                      />
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center space-x-2 text-gray-300">
-                          <input
-                            type="checkbox"
-                            checked={output.show}
-                            onChange={(e) => updateOutput(index, 'show', e.target.checked)}
-                            className="form-checkbox h-5 w-5 text-blue-500"
-                          />
-                          <span>Show</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => removeOutput(index)}
-                          className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-                        >
-                          <X size={20} />
-                        </button>
+                          <div className="flex items-center justify-between">
+                            <label className="flex items-center space-x-2 text-gray-300">
+                              <input
+                                type="checkbox"
+                                checked={output.show}
+                                onChange={(e) => updateOutput(index, 'show', e.target.checked)}
+                                className="form-checkbox h-5 w-5 text-blue-500"
+                              />
+                              <span>Show</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => removeOutput(index)}
+                              className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
+                    <button 
+                      type="button" 
+                      onClick={addOutput} 
+                      className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 flex items-center justify-center"
+                    >
+                      <PlusCircle size={20} className="mr-2" />
+                      Add Output
+                    </button>
                   </div>
-                ))}
-                <button 
-                  type="button" 
-                  onClick={addOutput} 
-                  className="w-full mt-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 flex items-center justify-center"
-                >
-                  <PlusCircle size={20} className="mr-2" />
-                  Add Output
-                </button>
-              </div>
+                  {successMessage && <div className="text-green-300">{successMessage}</div>}
+                </>
+              )}
             </>
           ) : (
             <JsonEditor value={jsonConfig} onChange={handleJsonChange} />

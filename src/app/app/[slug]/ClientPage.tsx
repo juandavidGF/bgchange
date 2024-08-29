@@ -399,8 +399,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
   const [video, setVideo] = useState<File | null>(null);
 
   const fetchConfig = useCallback(async () => {
-    const timestamp = Date.now();
-    const configurations = await getConfigurations(timestamp);
+    const configurations = await getConfigurations();
     const foundConfig = configurations.find(conf => conf.name === slug);
     if (foundConfig) {
       setConfig(foundConfig);
