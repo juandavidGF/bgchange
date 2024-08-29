@@ -16,12 +16,36 @@ export async function POST(
 ) {
   const slug = params.slug;
 
-  console.log({slug});
-
-  const configurations = await getConfigurations();
+  console.log('Received request for slug:', slug);
 
   try {
-    if (slug  === 'EVF-SAM' && configurations.find(conf => conf.name === 'EVF-SAM')) {
+    const configurations = await getConfigurations(true);
+
+    if (!configurations) {
+      console.error('No configurations found');
+      return NextResponse.json(
+        { error: 'No configurations available' },
+        { status: 404 }
+      );
+    }
+
+    console.log('Fetched configurations:', configurations);
+
+    const config = configurations.find(conf => conf.name === slug);
+
+    if (!config) {
+      console.error(`Configuration not found for slug: ${slug}`);
+      return NextResponse.json(
+        { error: `Configuration not found for slug: ${slug}` },
+        { status: 404 }
+      );
+    }
+
+    console.log('Found configuration:', config);
+
+    const evfSamConfig = configurations.find(conf => conf.name === 'EVF-SAM');
+
+    if (slug === 'EVF-SAM' && evfSamConfig) {
       const conf = configurations.find(conf => conf.name === 'EVF-SAM');
       console.log('flag1');
       const config = configurations.find(conf => conf.name === 'EVF-SAM');
@@ -70,9 +94,9 @@ export async function POST(
         output.data,
         { status: 201 }
       );
-    } else if (configurations.find(conf => conf.name === slug)) {
+    } else if (config) { 
       const req = await request.json();
-      const config = configurations.find(conf => conf.name === slug);
+      console.log('elseif conf');
 
       let indImg = 0;
 
@@ -124,6 +148,7 @@ export async function POST(
         if(!input) throw Error('api/app/[]/ input is not a object');
 
         console.log('xxx ->', {model, version , input});
+        
         const output = await replicate.predictions.create({
           model,
           version,
@@ -239,7 +264,10 @@ export async function POST(
     if(!input) throw Error('api/app/[]/ input is not a object');
 
     console.log('xxx ->', {model, version , input});
+
+
     const output = await replicate.predictions.create({
+      model,
       version,
       input,
     });
@@ -263,7 +291,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("api/app/[] err" + JSON.stringify(error, null, 2));
+    console.error("api/app/[] general error" + JSON.stringify(error.message, null, 2));
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

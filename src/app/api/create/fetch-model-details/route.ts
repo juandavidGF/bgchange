@@ -19,9 +19,9 @@ export async function POST(request: Request) {
     const inputs = data.openapi_schema.components.schemas.Input.properties;
     const outputs = data.openapi_schema.components.schemas.Output;
 
-    console.log('Fetching model:', model, 'version:', version);
-    console.log('API response status:', response.status);
-    console.log('API response:', JSON.stringify({inputs, outputs}, null, 2));
+    // console.log('Fetching model:', model, 'version:', version);
+    // console.log('API response status:', response.status);
+    // console.log('API response:', JSON.stringify({inputs, outputs}, null, 2));
 
     return NextResponse.json({ inputs, outputs });
   } catch (error) {

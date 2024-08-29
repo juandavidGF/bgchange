@@ -432,6 +432,8 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
     return notFound();
   }
 
+  console.log({config});
+
   const {model} = layout({slug});
   
   let contImg = 0;
@@ -694,8 +696,10 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
       if (status === 'failed') throw Error("status failed");
       prediction = result;
     }
-
+    
+    
     if (config && config.outputs) {
+      console.log({outputs: config.outputs});
       config.outputs.forEach((item: OutputItem) => {
         const {type} = item;
         if (type === 'image') {
@@ -859,25 +863,42 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
           <section className="mx-4 mt-9 flex flex-col gap-4">
             {config && config.outputs && config.outputs.map((item: OutputItem, index: number) => {
               if (('show' in item) && item['show']) {
-                if (item.type === 'array' && item.format === 'uri' && Array.isArray(outputImage)) {
-                  return (
-                    <div key={index} className="output-array">
-                      <h4>{item.title || 'Output'}</h4>
-                      <ul>
-                        {outputImage.map((output: string, idx: number) => (
-                          <li key={idx}>
-                            <a href={output} target="_blank" rel="noopener noreferrer">{output}</a>
-                          </li>
+                if (item.type === 'array' && item.format === 'uri') {
+                  // Check if outputImage is an array and has items
+                  if (Array.isArray(outputImage) && outputImage.length > 0) {
+                    return (
+                      <div key={index} className="flex flex-col">
+                        {outputImage.map((imgUri, imgIndex) => (
+                          <ImageOutput
+                            key={imgIndex}
+                            title={item.title || 'Output'}
+                            downloadOutputImage={downloadOutputImage}
+                            outputImage={imgUri} // Use each URI for the ImageOutput
+                            icon={SparklesIcon}
+                            loading={loading}
+                          />
                         ))}
-                      </ul>
-                    </div>
-                  );
+                      </div>
+                    );
+                  } else {
+                    // Show a placeholder or loading state before generation
+                    return (
+                      <ImageOutput
+                        key={index}
+                        title={item.title || 'Output'}
+                        downloadOutputImage={downloadOutputImage}
+                        outputImage={null} // Placeholder before generation
+                        icon={SparklesIcon}
+                        loading={loading}
+                      />
+                    );
+                  }
                 }
                 if(item.type === 'image') { 
                   return <ImageOutput
                     title={item.placeholder as string}
                     downloadOutputImage={downloadOutputImage}
-                    outputImage={outputImage}
+                    outputImage={Array.isArray(outputImage) ? outputImage[0] : outputImage} // Ensure outputImage is a string or null
                     icon={SparklesIcon}
                     loading={loading}
                   />
@@ -900,7 +921,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
               <ImageOutput
                 title={`AI-generated output goes here`}
                 downloadOutputImage={downloadOutputImage}
-                outputImage={outputImage}
+                outputImage={Array.isArray(outputImage) ? outputImage[0] : outputImage} // Ensure outputImage is a string or null
                 icon={SparklesIcon}
                 loading={loading}
               />
