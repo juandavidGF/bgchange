@@ -14,7 +14,7 @@ export default async function Page({ params }: { params: { slug: Slug } }) {
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <ClientPage slug={params.slug} configurations={configurations} />
+      <ClientPage slug={params.slug} initialConfigurations={configurations} />
     </Suspense>
   );
 }

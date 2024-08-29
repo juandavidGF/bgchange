@@ -16,7 +16,7 @@ const configurationsObj: Configurations = [
       { type: 'number', placeholder: 'Seed', key: 'seed', value: 42, show: false }
     ],
     outputs: [
-      { type: 'text', placeholder: 'Your name', key: 'outputName' },
+      { type: 'text', placeholder: 'Your name', key: 'outputName', show: false },
       { type: 'image', placeholder: 'Your profile picture', key: 'outputProfilePicture', show: true },
     ],
   },
@@ -53,10 +53,11 @@ const configurationsObj: Configurations = [
 ]
 
 // New function to fetch configurations
-async function fetchConfigurations() {
+async function fetchConfigurations(timestamp?: number) {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/create/get`, { next: { revalidate: 3600 } });
+    const url = `${baseUrl}/api/create/get${timestamp ? `?timestamp=${timestamp}` : ''}`;
+    const response = await fetch(url, { next: { revalidate: 3600 } });
     if (!response.ok) throw new Error('Failed to fetch configurations');
     return response.json();
   } catch (error) {
@@ -66,8 +67,8 @@ async function fetchConfigurations() {
 }
 
 // Combine local configurations with fetched configurations
-async function getConfigurations(): Promise<Configurations> {
-  const fetchedConfigurations = await fetchConfigurations();
+async function getConfigurations(timestamp?: number): Promise<Configurations> {
+  const fetchedConfigurations = await fetchConfigurations(timestamp);
   return fetchedConfigurations ? [...configurationsObj, ...fetchedConfigurations] : configurationsObj;
 }
 

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { InputItem, OutputItem, Configuration } from "@/types";
 import { PlusCircle, X, ChevronDown, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const JsonEditor = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -36,6 +37,8 @@ const JsonEditor = ({ value, onChange }: { value: string; onChange: (value: stri
 };
 
 export default function CreateApp() {
+  const router = useRouter();
+
   const [isRawDataStep, setIsRawDataStep] = useState(true);
   const [rawData, setRawData] = useState('');
   const [modelUrl, setModelUrl] = useState('');
@@ -43,14 +46,18 @@ export default function CreateApp() {
   const [editMode, setEditMode] = useState<'form' | 'json'>('form');
   const [jsonConfig, setJsonConfig] = useState('');
   const [appName, setAppName] = useState('');
-  const [appType, setAppType] = useState<'gradio' | 'replicate'>('gradio');
+  const [appType, setAppType] = useState<'gradio' | 'replicate'>('replicate');
   const [inputs, setInputs] = useState<InputItem[]>([]);
   const [outputs, setOutputs] = useState<OutputItem[]>([]);
   const [path, setPath] = useState('/predict');
   const [client, setClient] = useState('');
+  const [modelInput, setModelInput] = useState('');
   const [model, setModel] = useState('');
   const [version, setVersion] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [modelDetails, setModelDetails] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [configurations, setConfigurations] = useState<any[]>([]); // Add this line to define configurations
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -79,6 +86,31 @@ export default function CreateApp() {
     };
     setJsonConfig(JSON.stringify(currentConfig, null, 2));
   }, [appName, appType, client, path, model, version, inputs, outputs]);
+
+  useEffect(() => {
+    // Set default values based on configurations when the component mounts
+    if (configurations.length > 0) {
+      const initialInputs = configurations[0].inputs.map((input: InputItem) => ({
+        ...input,
+        type: input.type === 'image' ? 'image' : 
+              input.type === 'prompt' ? 'prompt' :
+              input.type === 'checkbox' ? 'checkbox' :
+              input.type === 'number' ? 'number' :
+              input.type === 'video' ? 'video' : 'text'
+      }));
+      setInputs(initialInputs);
+    }
+  }, [configurations]);
+
+  const handleInputChange = (index: number, field: keyof InputItem, value: any) => {
+    const newInputs = [...inputs];
+    newInputs[index] = { ...newInputs[index], [field]: value };
+
+    // Update the JSON configuration to match the form input
+    setJsonConfig(JSON.stringify(newInputs, null, 2));
+
+    setInputs(newInputs);
+  };
 
   const addInput = () => {
     setInputs([...inputs, { type: 'text', key: '', show: false }]);
@@ -150,7 +182,8 @@ export default function CreateApp() {
 
       if (response.ok) {
         alert('App created successfully!');
-        // Reset form or redirect
+        // Directly navigate to the new app page
+        router.push(`/app/${appName}`);
       } else {
         alert('Failed to create app');
       }
@@ -225,7 +258,7 @@ export default function CreateApp() {
           setModel(configuration.model as string);
           setVersion(configuration.version || null);
           setInputs(configuration.inputs);
-          setIsRawDataStep(false);
+          setIsRawDataStep(false); // Automatically move to the next step
         } else {
           console.error("Error: No input object found in raw data. Please check the format.");
         }
@@ -286,12 +319,72 @@ export default function CreateApp() {
     }
   };
 
+  const handleModelInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setModelInput(e.target.value);
+    const [modelPart, versionPart] = e.target.value.split(':');
+    setModel(modelPart.trim());
+    setVersion(versionPart ? versionPart.trim() : null);
+  };
+
+  const fetchModelDetails = async () => {
+    if (appType !== 'replicate' || !model || !version) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/create/fetch-model-details', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, version }),
+      });
+
+      if (!response.ok) throw new Error(`Failed to fetch model details: ${response.status}`);
+
+      const data = await response.json();
+
+      console.log({data});
+      
+      const newInputs: InputItem[] = Object.entries(data.inputs).map(([key, value]: [string, any]) => ({
+        type: value.type === 'integer' ? 'number' : (value.type === 'boolean' ? 'checkbox' : 'text'),
+        key,
+        show: false, // Set show to false by default
+        placeholder: value.description || '',
+        label: value.title || key,
+        description: value.description || '',
+        value: value.default !== undefined ? value.default : null, // Preserve default value
+      }));
+
+      // Ensure 'image' type is set correctly
+      const correctedInputs = newInputs.map(input => ({
+        ...input,
+        type: input.key.toLowerCase().includes('image') ? 'image' : input.type,
+      }));
+
+      setInputs(correctedInputs);
+
+      const newOutputs: OutputItem[] = [{
+        type: data.outputs.type,
+        key: data.outputs.title || '', // Assuming key is available in items
+        show: true,
+        placeholder: data.outputs.title || 'Generated output',
+        format: data.outputs.items.format, // Preserve format if needed
+      }];
+
+      setOutputs(newOutputs);
+      setIsRawDataStep(false); // Automatically move to the next step
+    } catch (error: any) {
+      console.error('Error fetching model details:', error);
+      alert(`Failed to fetch model details. Please check the model and version. ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6 bg-gray-800 rounded-lg shadow-lg mt-8 sm:mt-16">
       {isRawDataStep ? (
         <>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-200">Enter Model URL or Paste Raw Data</h2>
+            <h2 className="text-lg font-semibold text-gray-200">Enter Model Details</h2>
             <button
               type="button"
               onClick={() => setIsRawDataStep(false)}
@@ -301,46 +394,76 @@ export default function CreateApp() {
               <span className="ml-1">Skip Step</span>
             </button>
           </div>
-          <p className="text-gray-300 mb-4">You can either provide a URL for the model or paste the raw data directly.</p>
 
-          <div className="flex space-x-2 mb-4">
-            <input
-              type="text"
-              value={modelUrl}
-              onChange={(e) => setModelUrl(e.target.value)}
-              placeholder="Enter model URL"
-              className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="button"
-              onClick={handleFetchModel}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-300 mb-1">App Type:</label>
+            <select
+              value={appType}
+              onChange={(e) => setAppType(e.target.value as 'gradio' | 'replicate')}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              Get Model
-            </button>
+              <option value="replicate">Replicate</option>
+              <option value="gradio">Gradio</option>
+            </select>
           </div>
 
-          <div className="my-4 border-t border-gray-600 text-center">
-            <span className="bg-gray-800 px-2 text-gray-300">or</span>
-          </div>
+          {appType === 'replicate' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Model:Version</label>
+                <input
+                  type="text"
+                  value={modelInput}
+                  onChange={handleModelInputChange}
+                  placeholder="owner/model_name:version"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={fetchModelDetails}
+                disabled={isLoading || !model}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
+              >
+                {isLoading ? 'Fetching...' : 'Fetch Model Details'}
+              </button>
+            </div>
+          )}
 
-          <div className="flex justify-between mt-4">
+          {appType === 'gradio' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Model URL:</label>
+                <input
+                  type="text"
+                  value={modelUrl}
+                  onChange={(e) => setModelUrl(e.target.value)}
+                  placeholder="Enter Gradio model URL"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Raw Data (Optional):</label>
+                <textarea
+                  ref={textareaRef}
+                  value={rawData}
+                  onChange={handleRawDataChange}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-[20vh]"
+                  placeholder='Paste raw data here (optional)...'
+                />
+              </div>
+            </div>
+          )}
+
+          {appType === 'gradio' && (
             <button
               type="button"
               onClick={handleParseRawData}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
             >
-              Parse Data
+              Parse Raw Data
             </button>
-          </div>
-
-          <textarea
-            ref={textareaRef}
-            value={rawData}
-            onChange={handleRawDataChange}
-            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-[40vh]"
-            placeholder='Paste raw data here...'
-          />
+          )}
         </>
       ) : (
         <form onSubmit={handleSubmit}>
@@ -449,7 +572,7 @@ export default function CreateApp() {
                     <div className="grid grid-cols-2 gap-4">
                       <select
                         value={input.type}
-                        onChange={(e) => updateInput(index, 'type', e.target.value as InputItem['type'])}
+                        onChange={(e) => handleInputChange(index, 'type', e.target.value)}
                         className="w-full px-3 py-1.5 bg-gray-600 border border-gray-500 rounded-md text-white"
                       >
                         <option value="image">Image</option>
@@ -553,6 +676,7 @@ export default function CreateApp() {
                       >
                         <option value="text">Text</option>
                         <option value="image">Image</option>
+                        <option value="array">Array</option>
                       </select>
                       <input
                         type="text"

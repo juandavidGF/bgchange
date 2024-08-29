@@ -2,7 +2,7 @@
 
 import Dropzone from "react-dropzone";
 import { saveAs } from "file-saver";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { FileRejection } from "react-dropzone";
 import { ThreeDots } from "react-loader-spinner";
 import { FaTrashAlt } from "react-icons/fa";
@@ -14,6 +14,9 @@ import { SelectMenu } from "@/app/selectmenu";
 import { Configuration, ImageAreaProps, InputItem, OutputItem } from "@/types";
 import { sleep } from "@/utils";
 import { Prompt } from "@/components/prompt";
+import { useRouter } from 'next/navigation';
+import { notFound } from 'next/navigation';
+import { getConfigurations } from '@/common/configuration';
 
 type ErrorNotificationProps = {
   errorMessage: string;
@@ -381,42 +384,56 @@ type Status = "starting" | "processing" | "succeeded" | "failed" | "canceled";
 /**
  * Display the home page
  */
-export default function ClientPage({ slug, configurations }: { slug: Slug, configurations: Configuration[] }) {
-  let config: Configuration | null = null;
-
-  if (configurations) {
-    console.log('ClientPage', { configurations });
-    config = configurations.find(conf => conf.name === slug) || null;
-    if (config) {
-      // console.log({config});
-    } else {
-      console.error(`Invalid slug (config): ${slug}`);
-      if (slug !== "freshink"
-        && slug !== "createVideo"
-        && slug !== "upscaler"
-        && slug !== "hairStyle"
-        && slug !== "livePortrait"
-        && slug !== "tryon"
-      ) return <PageNotFound />;
-    }
-  } else {
-    console.error('Configurations are null');
-    return <PageNotFound />;
-  }
-  
-  const {model} = layout({slug});
-  
+export default function ClientPage({ slug, initialConfigurations }: { slug: Slug, initialConfigurations: Configuration[] }) {
+  const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const [config, setConfig] = useState<Configuration | null>(null);
   const [outputImage, setOutputImage] = useState<string | null>(null);
   const [base64Images, setBase64Images] = useState<string[]>([]);
   const [outputVideo, setOutputVideo] = useState<string | null>(null);
   const [base64Video, setBase64Video] = useState<string | null>(null);
   const [source, setSource] = useState<string>(sources[0]);
   const [prompt, setPrompt] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>("");
   const [files, setFiles] = useState<File[]>([]);
   const [video, setVideo] = useState<File | null>(null);
 
+  const fetchConfig = useCallback(async () => {
+    const timestamp = Date.now();
+    const configurations = await getConfigurations(timestamp);
+    const foundConfig = configurations.find(conf => conf.name === slug);
+    if (foundConfig) {
+      setConfig(foundConfig);
+      setLoading(false);
+    } else if (retryCount < 2) {
+      setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+      }, 1000);
+    } else {
+      setLoading(false);
+    }
+  }, [slug, retryCount]);
+
+  useEffect(() => {
+    fetchConfig();
+  }, [fetchConfig]);
+
+  useEffect(() => {
+    if (!loading && !config) {
+      window.location.reload();
+    }
+  }, [loading, config]);
+
+  if (loading) {
+    return <div>Loading... Attempt {retryCount + 1} of 3</div>;
+  }
+
+  if (!config) {
+    return notFound();
+  }
+
+  const {model} = layout({slug});
+  
   let contImg = 0;
 
   /**
@@ -595,8 +612,8 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
         alert('Please upload the files.');
         return;
       }
-      if (configurations) { // Check if configurations is not null
-        const evfSamConfig = configurations.find(conf => conf.name === 'EVF-SAM');
+      if (initialConfigurations) {
+        const evfSamConfig = initialConfigurations.find(conf => conf.name === 'EVF-SAM');
         if (evfSamConfig) {
           const formData = new FormData();
           formData.append(evfSamConfig.inputs[0].key, files[0]);
@@ -762,7 +779,7 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
                         setPrompt={setPrompt}
                       />)
                   default:
-                    return <div>no supported {type}</div>;
+                    return <div>no supported {item.key} type {type}</div>;
                 }
               }
             })}
@@ -798,18 +815,6 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
                 onChange={setSource}
               />
             }
-            {/* <SelectMenu
-              label="Room type"
-              options={rooms}
-              selected={room}
-              onChange={setRoom}
-            /> */}
-            {/* {Array.from({ length: model.input.image }).map((_, index) => (
-              <div>
-                {index} -
-              </div>
-            ))} */}
-
             {
               Array.from({ length: model.input.image }).map((_, index) => (
                 !files[index] ? (
@@ -854,6 +859,20 @@ export default function ClientPage({ slug, configurations }: { slug: Slug, confi
           <section className="mx-4 mt-9 flex flex-col gap-4">
             {config && config.outputs && config.outputs.map((item: OutputItem, index: number) => {
               if (('show' in item) && item['show']) {
+                if (item.type === 'array' && item.format === 'uri' && Array.isArray(outputImage)) {
+                  return (
+                    <div key={index} className="output-array">
+                      <h4>{item.title || 'Output'}</h4>
+                      <ul>
+                        {outputImage.map((output: string, idx: number) => (
+                          <li key={idx}>
+                            <a href={output} target="_blank" rel="noopener noreferrer">{output}</a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                }
                 if(item.type === 'image') { 
                   return <ImageOutput
                     title={item.placeholder as string}
