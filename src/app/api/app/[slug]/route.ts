@@ -122,8 +122,8 @@ export async function POST(
         config.inputs.forEach(item => {
           if (item.key) {
             if(item.show) {
-              const {type} = item;
-              if (type === 'image') {
+              const {component} = item;
+              if (component === 'image') {
                 const {image} = req;
                 if(!image) return NextResponse.json(
                   { error: 'not image /api' },
@@ -131,7 +131,7 @@ export async function POST(
                 );
                 console.log({image})
                 input[item.key] = image[indxImage];
-              } else if (type === 'prompt') {
+              } else if (component === 'prompt') {
                 const {prompt} = req;
                 if(!prompt) return NextResponse.json(
                   { error: 'not image /api' },
@@ -175,11 +175,11 @@ export async function POST(
       } else if (config && config.type === 'gradio') {
         const params = config.inputs.map(item => {
           if(item.show) {
-            if(item.type === 'image') {
+            if(item.component === 'image') {
               const newImg = req.image[indImg];
               indImg++;
               return newImg;
-            } else if (item.type === 'prompt') {
+            } else if (item.component === 'prompt') {
               return req.prompt;
             } else {
               return item.value;
