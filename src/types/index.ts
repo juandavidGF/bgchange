@@ -36,12 +36,14 @@ export type InputItem = {
 };
 
 export type OutputItem = {
-  type: string;
   key: string;
+  type: 'string' | 'number' | 'boolean' | 'array';
   show: boolean;
-  placeholder?: string;
+  title: string;
   format?: string;
-  title?: string;
+  typeItem?: 'string' | 'number' | 'boolean';
+  formatItem?: string;
+  placeholder?: string;
 };
 
 export type Configuration = {

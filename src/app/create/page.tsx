@@ -61,6 +61,7 @@ export default function CreateApp() {
   const [configurations, setConfigurations] = useState<any[]>([]);
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null); // State for loading message
   const [successMessage, setSuccessMessage] = useState<string | null>(null); // State for success message
+  const [endpoint, setEndpoint] = useState('');
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -68,7 +69,7 @@ export default function CreateApp() {
     const currentConfig = {
       name: appName,
       type: appType,
-      ...(appType === 'gradio' ? { client, path } : { model, version }),
+      ...(appType === 'gradio' ? { client, path, endpoint } : { model, version }),
       inputs: inputs.map(input => ({
         type: input.type,
         key: input.key,
@@ -88,7 +89,7 @@ export default function CreateApp() {
       }))
     };
     setJsonConfig(JSON.stringify(currentConfig, null, 2));
-  }, [appName, appType, client, path, model, version, inputs, outputs]);
+  }, [appName, appType, client, path, model, version, inputs, outputs, endpoint]);
 
   useEffect(() => {
     if (configurations.length > 0) {
@@ -105,6 +106,15 @@ export default function CreateApp() {
       const updatedInputs = [...prevInputs];
       updatedInputs[index] = { ...updatedInputs[index], [field]: value };
       return updatedInputs;
+    });
+  };
+
+  const handleOutputChange = (index: number, field: keyof OutputItem, value: any) => {
+    setOutputs(prevOutputs => {
+      const updatedOutputs = [...prevOutputs];
+      updatedOutputs[index] = { ...updatedOutputs[index], [field]: value };
+      updateJsonConfig(inputs, updatedOutputs);
+      return updatedOutputs;
     });
   };
 
@@ -162,6 +172,7 @@ export default function CreateApp() {
     if (appType === 'gradio') {
       newApp.client = client;
       newApp.path = path;
+      newApp.endpoint = endpoint;
     } else {
       newApp.model = model as `${string}/${string}`;
       newApp.version = version;
@@ -278,6 +289,7 @@ export default function CreateApp() {
       if (parsedConfig.type === 'gradio') {
         setClient(parsedConfig.client);
         setPath(parsedConfig.path);
+        setEndpoint(parsedConfig.endpoint);
       } else {
         setModel(parsedConfig.model);
         setVersion(parsedConfig.version);
@@ -325,56 +337,92 @@ export default function CreateApp() {
     setVersion(versionPart ? versionPart.trim() : null);
   };
 
-  const fetchModelDetails = async () => {
-    if (appType !== 'replicate' || !model || !version) return;
+  interface PropertyValue {
+    type: 'string' | 'array' | 'number' | 'boolean';
+    default?: string | number | boolean;
+    description?: string;
+    title?: string;
+    required?: boolean;
+    items?: {
+      type?: string;
+      format?: string;
+    };
+    format?: string; // Add this line
+  }
 
-    setIsLoading(true);
-    setLoadingMessage('Fetching model details...'); // Set loading message
-    setSuccessMessage(null); // Clear previous success message
-
+  const handleFetchModelDetails = async () => {
     try {
       const response = await fetch('/api/create/fetch-model-details', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, version }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model, version }), // Send model and version in the request body
       });
 
-      if (!response.ok) throw new Error(`Failed to fetch model details: ${response.status}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch model data');
+      }
 
       const data = await response.json();
 
-      console.log({ data });
+      console.log('Fetched data:', data);
 
-      const newInputs: InputItem[] = Object.entries(data.inputs).map(([key, value]: [string, any]) => ({
-        type: value.type, // Use the type from the API directly
-        key,
-        show: value.show || false, // Use the API value for 'show'
-        placeholder: value.description || '',
-        label: value.title || key,
-        description: value.description || '',
-        value: value.default !== undefined ? value.default : '', // Set to empty string if null
-        required: value.required || false
-      }));
+      // Populate inputs based on the schema
+      const { inputs, outputs, required } = data; // Destructure inputs, outputs, and required from data
 
-      setInputs(newInputs);
+      // Process inputs
+      const inputItems: InputItem[] = Object.entries(inputs).map(([key, value]) => {
+        const typedValue = value as PropertyValue;
+        return {
+          key,
+          type: typedValue.type,
+          value: (typedValue.default !== undefined ? typedValue.default : '') as string | number | boolean | undefined,
+          show: required.includes(key),
+          placeholder: typedValue.description || '',
+          label: typedValue.title || '',
+          required: required.includes(key),
+        };
+      });
+      
+      // Process outputs
+      const processOutput = (key: string, value: PropertyValue): OutputItem => {
+        let outputItem: OutputItem = {
+          key,
+          type: value.type as 'string' | 'number' | 'boolean' | 'array',
+          show: true,
+          title: value.title || key,
+          placeholder: value.description || '',
+        };
+      
+        if (value.type === 'array' && value.items) {
+          outputItem.typeItem = value.items.type as 'string' | 'number' | 'boolean';
+          if (value.items.format) {
+            outputItem.formatItem = value.items.format;
+          }
+        } else if (value.type === 'string' && value.format) {
+          outputItem.format = value.format;
+        }
+      
+        return outputItem;
+      };
 
-      const newOutputs: OutputItem[] = [{
-        type: data.outputs.type,
-        key: data.outputs.title || '',
-        show: true,
-        placeholder: data.outputs.title || 'Generated output',
-        format: data.outputs.items.format,
-      }];
+      const outputItems: OutputItem[] = 
+        Object.entries({outputs}).map(([key, value]) => processOutput(key, value as PropertyValue));
 
-      setOutputs(newOutputs);
+      // Sort inputs to have required fields at the top
+      const sortedInputs = [
+        ...inputItems.filter((input: InputItem) => input.required),
+        ...inputItems.filter((input: InputItem) => !input.required),
+      ];
+
+      setInputs(sortedInputs);
+      setOutputs(outputItems);
+      updateJsonConfig(sortedInputs, outputItems);
       setIsRawDataStep(false);
-      setSuccessMessage('Model details fetched successfully!'); // Set success message
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching model details:', error);
-      alert(`Failed to fetch model details. Please check the model and version. ${error.message}`);
-    } finally {
-      setIsLoading(false);
-      setLoadingMessage(null); // Clear loading message
+      alert('Error fetching model data. Please check the URL and try again.');
     }
   };
 
@@ -413,6 +461,74 @@ export default function CreateApp() {
       default:
         return null;
     }
+  };
+
+  const updateJsonConfig = (inputs: InputItem[], outputs: OutputItem[]) => {
+    const config: Configuration = {
+      name: appName,
+      type: appType,
+      inputs,
+      outputs: outputs.map(output => {
+        // Include all properties, including formatItem if it exists
+        const outputItem: OutputItem = {
+          key: output.key,
+          type: output.type,
+          show: output.show,
+          title: output.title,
+          placeholder: output.placeholder,
+        };
+        if (output.format) outputItem.format = output.format;
+        if (output.typeItem) outputItem.typeItem = output.typeItem;
+        if (output.formatItem) outputItem.formatItem = output.formatItem;
+        return outputItem;
+      })
+    };
+
+    if (appType === 'replicate') {
+      config.model = model as `${string}/${string}`;
+      config.version = version;
+    } else if (appType === 'gradio') {
+      config.client = client;
+      config.path = path;
+      config.endpoint = endpoint;
+    }
+
+    setJsonConfig(JSON.stringify(config, null, 2));
+  };
+
+  const handleAppNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAppName(e.target.value);
+    updateJsonConfig(inputs, outputs);
+  };
+
+  const handleAppTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setAppType(e.target.value as 'gradio' | 'replicate');
+    updateJsonConfig(inputs, outputs);
+  };
+
+  const handleModelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setModel(e.target.value);
+    updateJsonConfig(inputs, outputs);
+  };
+
+  const handleVersionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setVersion(e.target.value);
+    updateJsonConfig(inputs, outputs);
+  };
+
+  const handleClientChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setClient(e.target.value);
+    updateJsonConfig(inputs, outputs);
+  };
+
+  const handlePathChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPath(e.target.value);
+    updateJsonConfig(inputs, outputs);
+  };
+
+  const handleEndpointChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEndpoint(e.target.value);
+    updateJsonConfig(inputs, outputs);
   };
 
   return (
@@ -457,7 +573,7 @@ export default function CreateApp() {
               </div>
               <button
                 type="button"
-                onClick={fetchModelDetails}
+                onClick={handleFetchModelDetails}
                 disabled={isLoading || !model}
                 className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
               >
@@ -506,14 +622,14 @@ export default function CreateApp() {
           <div className="flex justify-between items-center mb-4">
             <div className="flex space-x-4">
               <button 
-                type="button"
+                type="button" 
                 onClick={() => setEditMode('form')} 
                 className={`px-4 py-2 rounded-md ${editMode === 'form' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'}`}
               >
                 Form
               </button>
               <button 
-                type="button"
+                type="button" 
                 onClick={() => setEditMode('json')} 
                 className={`px-4 py-2 rounded-md ${editMode === 'json' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'}`}
               >
@@ -536,7 +652,7 @@ export default function CreateApp() {
                   <input
                     type="text"
                     value={appName}
-                    onChange={(e) => setAppName(e.target.value)}
+                    onChange={handleAppNameChange}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
@@ -545,7 +661,7 @@ export default function CreateApp() {
                   <label className="block text-sm font-medium text-gray-300 mb-1">App Type:</label>
                   <select
                     value={appType}
-                    onChange={(e) => setAppType(e.target.value as 'gradio' | 'replicate')}
+                    onChange={handleAppTypeChange}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="gradio">Gradio</option>
@@ -561,7 +677,7 @@ export default function CreateApp() {
                     <input
                       type="text"
                       value={client}
-                      onChange={(e) => setClient(e.target.value)}
+                      onChange={handleClientChange}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
@@ -571,7 +687,17 @@ export default function CreateApp() {
                     <input
                       type="text"
                       value={path}
-                      onChange={(e) => setPath(e.target.value)}
+                      onChange={handlePathChange}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Endpoint:</label>
+                    <input
+                      type="text"
+                      value={endpoint}
+                      onChange={handleEndpointChange}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
@@ -584,7 +710,7 @@ export default function CreateApp() {
                     <input
                       type="text"
                       value={model}
-                      onChange={(e) => setModel(e.target.value)}
+                      onChange={handleModelChange}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
@@ -594,7 +720,7 @@ export default function CreateApp() {
                     <input
                       type="text"
                       value={version || ''}
-                      onChange={(e) => setVersion(e.target.value || null)}
+                      onChange={handleVersionChange}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -602,7 +728,7 @@ export default function CreateApp() {
                     <div className="mt-4">
                       <button
                         type="button"
-                        onClick={fetchModelDetails}
+                        onClick={handleFetchModelDetails}
                         className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
                       >
                         Re-fetch Model Details
@@ -681,46 +807,11 @@ export default function CreateApp() {
                             />
                             <input
                               type="text"
-                              value={input.gradioName || ''}
-                              onChange={(e) => handleInputChange(index, 'gradioName', e.target.value)}
-                              placeholder="Gradio Name"
-                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                            />
-                            <input
-                              type="text"
                               value={input.label || ''}
                               onChange={(e) => handleInputChange(index, 'label', e.target.value)}
                               placeholder="Label"
                               className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                             />
-                            <input
-                              type="text"
-                              value={input.description || ''}
-                              onChange={(e) => handleInputChange(index, 'description', e.target.value)}
-                              placeholder="Description"
-                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                            />
-                            <select
-                              value={input.component || ''}
-                              onChange={(e) => handleInputChange(index, 'component', e.target.value)}
-                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                            >
-                              <option value="">Select Component</option>
-                              <option value="image">Image</option>
-                              <option value="prompt">Prompt</option>
-                              <option value="checkbox">Checkbox</option>
-                              <option value="number">Number</option>
-                              <option value="video">Video</option>
-                            </select>
-                            <label className="flex items-center space-x-2 text-gray-300">
-                              <input
-                                type="checkbox"
-                                checked={input.required || false}
-                                onChange={(e) => handleInputChange(index, 'required', e.target.checked)}
-                                className="form-checkbox h-5 w-5 text-blue-500"
-                              />
-                              <span>Required</span>
-                            </label>
                           </div>
                         )}
                       </div>
@@ -739,27 +830,30 @@ export default function CreateApp() {
                     {outputs.map((output, index) => (
                       <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
                         <div className="grid grid-cols-2 gap-4">
-                          <select
-                            value={output.type}
-                            onChange={(e) => updateOutput(index, 'type', e.target.value as OutputItem['type'])}
-                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                          >
-                            <option value="text">Text</option>
-                            <option value="image">Image</option>
-                            <option value="array">Array</option>
-                          </select>
                           <input
                             type="text"
                             value={output.key}
-                            onChange={(e) => updateOutput(index, 'key', e.target.value)}
+                            onChange={(e) => handleOutputChange(index, 'key', e.target.value)}
                             placeholder="Key"
                             className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                           />
+                          <select
+                            value={output.type}
+                            onChange={(e) => handleOutputChange(index, 'type', e.target.value as OutputItem['type'])}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                          >
+                            <option value="string">String</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="array">Array</option>
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-2">
                           <input
                             type="text"
-                            value={output.placeholder || ''}
-                            onChange={(e) => updateOutput(index, 'placeholder', e.target.value)}
-                            placeholder="Placeholder"
+                            value={output.value || ''}
+                            onChange={(e) => handleOutputChange(index, 'value', e.target.value)}
+                            placeholder="Value"
                             className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                           />
                           <div className="flex items-center justify-between">
@@ -767,7 +861,7 @@ export default function CreateApp() {
                               <input
                                 type="checkbox"
                                 checked={output.show}
-                                onChange={(e) => updateOutput(index, 'show', e.target.checked)}
+                                onChange={(e) => handleOutputChange(index, 'show', e.target.checked)}
                                 className="form-checkbox h-5 w-5 text-blue-500"
                               />
                               <span>Show</span>
@@ -781,6 +875,54 @@ export default function CreateApp() {
                             </button>
                           </div>
                         </div>
+                        {output.show && (
+                          <>
+                            <input
+                              type="text"
+                              value={output.title}
+                              onChange={(e) => handleOutputChange(index, 'title', e.target.value)}
+                              placeholder="Title"
+                              className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            <input
+                              type="text"
+                              value={output.placeholder || ''}
+                              onChange={(e) => handleOutputChange(index, 'placeholder', e.target.value)}
+                              placeholder="Placeholder"
+                              className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            />
+                            {output.type === 'array' && (
+                              <>
+                                <select
+                                  value={output.typeItem || ''}
+                                  onChange={(e) => handleOutputChange(index, 'typeItem', e.target.value as OutputItem['typeItem'])}
+                                  className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                                >
+                                  <option value="">Select Item Type</option>
+                                  <option value="string">String</option>
+                                  <option value="number">Number</option>
+                                  <option value="boolean">Boolean</option>
+                                </select>
+                                <input
+                                  type="text"
+                                  value={output.formatItem || ''}
+                                  onChange={(e) => handleOutputChange(index, 'formatItem', e.target.value)}
+                                  placeholder="Format Item"
+                                  className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                                />
+                              </>
+                            )}
+                            {output.type === 'string' && (
+                              <input
+                                type="text"
+                                value={output.format || ''}
+                                onChange={(e) => handleOutputChange(index, 'format', e.target.value)}
+                                placeholder="Format"
+                                className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                              />
+                            )}
+                          </>
+                        )}
                       </div>
                     ))}
                     <button 
