@@ -119,11 +119,11 @@ export default function CreateApp() {
   };
 
   const addInput = () => {
-    setInputs([...inputs, { type: 'string', key: '', show: false }]); // Changed 'text' to 'string'
+    setInputs([...inputs, { component: 'prompt', type: 'string', key: '', show: false }]);
   };
 
   const addOutput = () => {
-    setOutputs([...outputs, { type: 'text', key: '', placeholder: '', show: true }]);
+    setOutputs([...outputs, { component: 'image', type: 'string', key: '', show: true }]);
   };
 
   const updateInput = (index: number, field: keyof InputItem, value: any) => {
@@ -253,7 +253,8 @@ export default function CreateApp() {
               key,
               value: value as any, // Explicitly cast value to any
               show: false,
-              required: value.required || false
+              required: value.required || false,
+              component: value.component || 'prompt'
             }))
           };
 
@@ -342,6 +343,7 @@ export default function CreateApp() {
       format?: string;
     };
     format?: string; // Add this line
+    component?: 'image' | 'prompt' | 'checkbox' | 'number' | 'video';
   }
 
   const handleFetchModelDetails = async () => {
@@ -369,6 +371,7 @@ export default function CreateApp() {
       const inputItems: InputItem[] = Object.entries(inputs).map(([key, value]) => {
         const typedValue = value as PropertyValue;
         return {
+          component: typedValue.component || 'prompt',
           key,
           type: typedValue.type,
           value: (typedValue.default !== undefined ? typedValue.default : '') as string | number | boolean | undefined,
@@ -376,12 +379,14 @@ export default function CreateApp() {
           placeholder: typedValue.description || '',
           label: typedValue.title || '',
           required: required.includes(key),
+          
         };
       });
       
       // Process outputs
       const processOutput = (key: string, value: PropertyValue): OutputItem => {
         let outputItem: OutputItem = {
+          component: value.component || 'image',
           key,
           type: value.type as 'string' | 'number' | 'boolean' | 'array',
           show: true,
@@ -470,6 +475,7 @@ export default function CreateApp() {
           show: output.show,
           title: output.title,
           placeholder: output.placeholder,
+          component: output.component || 'image'
         };
         if (output.format) outputItem.format = output.format;
         if (output.typeItem) outputItem.typeItem = output.typeItem;
@@ -745,16 +751,6 @@ export default function CreateApp() {
                     {inputs.map((input, index) => (
                       <div key={index} className="mb-4 p-4 bg-gray-700 rounded-md">
                         <div className="grid grid-cols-2 gap-4">
-                          <select
-                            value={input.type}
-                            onChange={(e) => handleInputChange(index, 'type', e.target.value as InputItem['type'])}
-                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                          >
-                            <option value="string">String</option>
-                            <option value="array">Array</option>
-                            <option value="number">Number</option>
-                            <option value="boolean">Boolean</option>
-                          </select>
                           <input
                             type="text"
                             value={input.key}
@@ -762,6 +758,17 @@ export default function CreateApp() {
                             placeholder="Key"
                             className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                           />
+                          <select
+                            value={input.component}
+                            onChange={(e) => handleInputChange(index, 'component', e.target.value as InputItem['component'])}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                          >
+                            <option value="prompt">Prompt</option>
+                            <option value="image">Image</option>
+                            <option value="checkbox">Checkbox</option>
+                            <option value="number">Number</option>
+                            <option value="video">Video</option>
+                          </select>
                         </div>
                         <div className="grid grid-cols-2 gap-4 mt-2">
                           <input
@@ -806,6 +813,16 @@ export default function CreateApp() {
                               placeholder="Label"
                               className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                             />
+                            <select
+                              value={input.type}
+                              onChange={(e) => handleInputChange(index, 'type', e.target.value as InputItem['type'])}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            >
+                              <option value="string">String</option>
+                              <option value="array">Array</option>
+                              <option value="number">Number</option>
+                              <option value="boolean">Boolean</option>
+                            </select>
                           </div>
                         )}
                       </div>
@@ -826,29 +843,30 @@ export default function CreateApp() {
                         <div className="grid grid-cols-2 gap-4">
                           <input
                             type="text"
-                            value={output.key}
-                            onChange={(e) => handleOutputChange(index, 'key', e.target.value)}
-                            placeholder="Key"
-                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            value={output.title}
+                            onChange={(e) => handleOutputChange(index, 'title', e.target.value)}
+                            placeholder="Title"
+                            className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                           />
                           <select
-                            value={output.type}
-                            onChange={(e) => handleOutputChange(index, 'type', e.target.value as OutputItem['type'])}
-                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            value={output.component}
+                            onChange={(e) => handleOutputChange(index, 'component', e.target.value as OutputItem['component'])}
+                            className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                           >
-                            <option value="string">String</option>
+                            <option value="image">Image</option>
+                            <option value="prompt">Prompt</option>
+                            <option value="checkbox">Checkbox</option>
                             <option value="number">Number</option>
-                            <option value="boolean">Boolean</option>
-                            <option value="array">Array</option>
+                            <option value="video">Video</option>
                           </select>
                         </div>
                         <div className="grid grid-cols-2 gap-4 mt-2">
                           <input
                             type="text"
-                            value={output.value || ''}
-                            onChange={(e) => handleOutputChange(index, 'value', e.target.value)}
-                            placeholder="Value"
-                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            value={output.placeholder || ''}
+                            onChange={(e) => handleOutputChange(index, 'placeholder', e.target.value)}
+                            placeholder="Placeholder"
+                            className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                           />
                           <div className="flex items-center justify-between">
                             <label className="flex items-center space-x-2 text-gray-300">
@@ -870,21 +888,24 @@ export default function CreateApp() {
                           </div>
                         </div>
                         {output.show && (
-                          <>
+                          <div className="mt-4 grid grid-cols-2 gap-4">
                             <input
                               type="text"
-                              value={output.title}
-                              onChange={(e) => handleOutputChange(index, 'title', e.target.value)}
-                              placeholder="Title"
-                              className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                              value={output.key}
+                              onChange={(e) => handleOutputChange(index, 'key', e.target.value)}
+                              placeholder="Key"
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                             />
-                            <input
-                              type="text"
-                              value={output.placeholder || ''}
-                              onChange={(e) => handleOutputChange(index, 'placeholder', e.target.value)}
-                              placeholder="Placeholder"
-                              className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                            />
+                            <select
+                              value={output.type}
+                              onChange={(e) => handleOutputChange(index, 'type', e.target.value as OutputItem['type'])}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            >
+                              <option value="string">String</option>
+                              <option value="number">Number</option>
+                              <option value="boolean">Boolean</option>
+                              <option value="array">Array</option>
+                            </select>
                             {output.type === 'array' && (
                               <>
                                 <select
@@ -915,7 +936,7 @@ export default function CreateApp() {
                                 className="w-full mt-2 px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                               />
                             )}
-                          </>
+                          </div>
                         )}
                       </div>
                     ))}

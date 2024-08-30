@@ -314,14 +314,6 @@ function VideoDropzone(
   );
 }
 
-function PageNotFound() {
-  return (<div className="w-full h-screen text-white flex justify-center items-center">
-    <div className="mx-auto ">
-      404 Page not found
-    </div>
-  </div>)
-}
-
 interface ModelInput {
   prompt: boolean;
   image: number;
@@ -563,17 +555,17 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
       let imgI = 0;
       for (const [key, value] of Object.entries(config.inputs)) {
         if (value.show) {
-          const {type} = value;
-          if (type === 'image') {
-            if(!params[type][imgI]) {
-              alert(`must to fill the ${type} ${imgI}`)
+          const {component} = value;
+          if (component === 'image') {
+            if(!params[component][imgI]) {
+              alert(`must to fill the ${component} ${imgI}`)
               return;
             }
             imgI++;
-          } else if(params[type]) {
-            console.log(`${type} ${imgI} filled`);
+          } else if(params[component]) {
+            console.log(`${component} ${imgI} filled`);
           } else {
-            alert(`must to fill the ${type}`)
+            alert(`must to fill the ${component}`)
             return;
           }
         }
@@ -700,9 +692,9 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
     if (config && config.outputs) {
       console.log({outputs: config.outputs});
       config.outputs.forEach((item: OutputItem) => {
-        const {type} = item;
-        if (type === 'image') {
-          if(typeof prediction.state.output === 'string') {
+        const {component} = item; // Change 'type' to 'component'
+        if (component === 'image') { // Update the condition to check 'component'
+          if (typeof prediction.state.output === 'string') {
             setOutputImage(prediction.state.output);
           } else {
             if (config?.outputs && config.outputs.length > 0) {
@@ -713,7 +705,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
               throw Error('Invalid key');
             }
           }
-        } else if (type === 'video') {
+        } else if (component === 'video') {
           if (config?.outputs && config.outputs.length > 0) {
             const key = config.outputs[0].key;
             setOutputVideo(prediction.state.output[key]);
@@ -748,9 +740,9 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
           <section className="mx-4 mt-9 flex flex-col space-y-8 lg:mx-6 gap-4 lg:space-x-8 lg:space-y-0 xl:mx-8">
             {config?.inputs.map((item: InputItem, index: number) => {
               if (('show' in item) && item['show']) {
-                const { type } = item;
-                console.log({item}, {type});
-                switch (type) {
+                const { component } = item;
+                console.log({item}, {component});
+                switch (component) {
                   case 'image':
                     const Img = !files[contImg] ? 
                       (<ImageDropzone
@@ -782,7 +774,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
                         setPrompt={setPrompt}
                       />)
                   default:
-                    return <div>no supported {item.key} type {type}</div>;
+                    return <div>no supported {item.key} type {component}</div>;
                 }
               }
             })}
@@ -893,7 +885,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
                     );
                   }
                 }
-                if(item.type === 'image') { 
+                if(item.component === 'image') { 
                   return <ImageOutput
                     title={item.placeholder as string}
                     downloadOutputImage={downloadOutputImage}
@@ -901,7 +893,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
                     icon={SparklesIcon}
                     loading={loading}
                   />
-                } else if (item.type === 'video') {
+                } else if (item.component === 'video') {
                   return <video
                     src={outputVideo as string}
                     width="520"
