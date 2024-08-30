@@ -35,16 +35,17 @@ export type InputItem = {
   required?: boolean;
 };
 
-export type OutputItem = {
+export interface OutputItem {
   key: string;
   type: 'string' | 'number' | 'boolean' | 'array';
   show: boolean;
-  title: string;
-  format?: string;
-  typeItem?: 'string' | 'number' | 'boolean';
-  formatItem?: string;
+  title?: string;
   placeholder?: string;
-};
+  value?: string; // Add this line
+  typeItem?: 'string' | 'number' | 'boolean';
+  format?: string;
+  formatItem?: string;
+}
 
 export type Configuration = {
   name: string;

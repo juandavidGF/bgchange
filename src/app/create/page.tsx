@@ -194,13 +194,7 @@ export default function CreateApp() {
           return res.ok;
         };
 
-        const interval = setInterval(async () => {
-          const exists = await checkAppExists();
-          if (exists) {
-            clearInterval(interval);
-            router.push(`/app/${appName}`);
-          }
-        }, 1000);
+        router.push(`/app/${appName}`);
       } else {
         alert('Failed to create app');
       }
