@@ -50,6 +50,25 @@ const configurationsObj: Configurations = [
       { type: 'image', placeholder: 'mask', key:'mask', show: true },
     ],
   },
+  {
+    name: 'consistent-character',
+    type: 'replicate',
+    model: 'fofr/consistent-character',
+    version: '9c77a3c2f884193fcee4d89645f02a0b9def9434f9e03cb98460456b831c8772',
+    inputs: [
+      { component: 'prompt', type: 'string', key: 'prompt', label: 'Prompt', description: 'the prompt to generate the character', value: 'A closeup headshot photo of a young woman in a grey sweater', show: true },
+      { component: 'image', type: 'string', key: 'subject', value: 'https://replicate.delivery/pbxt/L0gy7uyLE5UP0uz12cndDdSOIgw5R3rV5N6G2pbt7kEK9dCr/0_3.webp', show: true },
+      { component: 'prompt', type: 'string', key: 'output_format', value: 'webp', show: false },
+      { component: 'prompt', type: 'integer', key: 'output_quality', value: 80, show: false },
+      { component: 'prompt', type: 'string', key: 'negative_prompt', value: "", show: false },
+      { component: 'prompt', type: 'boolean', key: 'randomise_poses', value: true, show: false },
+      { component: 'number', type: 'boolean', key: 'number_of_outputs', label: 'number of outputs', value: 5, show: false },
+      { component: 'number', type: 'boolean', key: 'number_of_images_per_pose', label: 'number of images per pose', value: 1, show: false },
+    ],
+    outputs: [
+      { component: 'image', type: 'array', typeItem: 'string', format: 'uri', placeholder: 'characther', key:'output', show: true },
+    ],
+  },
 ]
 
 // New function to fetch configurations

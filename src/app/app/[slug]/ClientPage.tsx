@@ -380,7 +380,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [config, setConfig] = useState<Configuration | null>(null);
-  const [outputImage, setOutputImage] = useState<string | null>(null);
+  const [outputImage, setOutputImage] = useState<string[] | null>(null);
   const [base64Images, setBase64Images] = useState<string[]>([]);
   const [outputVideo, setOutputVideo] = useState<string | null>(null);
   const [base64Video, setBase64Video] = useState<string | null>(null);
@@ -541,7 +541,9 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
    * @returns void
    */
   function downloadOutputImage(): void {
-    saveAs(outputImage as string, "output.png");
+    if (outputImage && Array.isArray(outputImage) && outputImage.length > 0) {
+      saveAs(outputImage[0], "output.png"); // Use the first image in the array
+    }
   }
 
   /**
@@ -694,16 +696,13 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
       config.outputs.forEach((item: OutputItem) => {
         const {component} = item; // Change 'type' to 'component'
         if (component === 'image') { // Update the condition to check 'component'
-          if (typeof prediction.state.output === 'string') {
-            setOutputImage(prediction.state.output);
+          if (Array.isArray(prediction.state.output)) { // Check if output is an array
+            setOutputImage(prediction.state.output); // Set the entire array
+          } else if (typeof prediction.state.output === 'string') {
+            setOutputImage([prediction.state.output]); // Wrap single string in an array
           } else {
-            if (config?.outputs && config.outputs.length > 0) {
-              const key = config.outputs[0].key;
-              setOutputImage(prediction.state.output[key]);
-            } else {
-              console.error('Invalid key');
-              throw Error('Invalid key');
-            }
+            console.error('Invalid output format');
+            throw Error('Invalid output format');
           }
         } else if (component === 'video') {
           if (config?.outputs && config.outputs.length > 0) {

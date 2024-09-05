@@ -26,7 +26,7 @@ export type InputItem = {
   component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video';
   key: string;
   placeholder?: string;
-  type: 'string' | 'array' | 'number' | 'boolean';
+  type: 'string' | 'array' | 'integer' | 'boolean';
   gradioName?: string;
   show?: boolean;
   label?: string;

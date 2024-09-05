@@ -94,7 +94,7 @@ export async function POST(
         output.data,
         { status: 201 }
       );
-    } else if (config) { 
+    } else if (config) {
       const req = await request.json();
       console.log('elseif conf');
 
@@ -108,7 +108,7 @@ export async function POST(
         const model: 
           `${string}/${string}` | `${string}/${string}:${string}` | undefined = config.model;
 
-        if(!model || typeof model !== "string") throw Error(`not model found or format issue ${model}`);
+        if (!model || typeof model !== "string") throw Error(`not model found or format issue ${model}`);
 
         const version = config.version as string | undefined;
 
@@ -117,6 +117,8 @@ export async function POST(
         const input: { [key: string]: any } = {};
         
         // TODO -> Make the extraction of the req automatic, define in the fronted, the name related with the config object ...
+
+        // console.log('Request Parameters:', JSON.stringify(req, null, 2));
 
         let indxImage = 0;
         config.inputs.forEach(item => {
@@ -149,15 +151,15 @@ export async function POST(
 
         console.log('xxx ->', {model, version , input});
         
-        const output = await replicate.predictions.create({
-          model,
-          version,
-          input,
-        });
+        // const output = await replicate.predictions.create({
+        //   model,
+        //   version,
+        //   input,
+        // });
 
-        // const output = {
-        //   id: "nbjvdfmzwdrgg0ch1tn8dee3j8"
-        // };
+        const output = {
+          id: "3h1s8zajrxrgp0chr93t8h6svg"
+        };
         
         if (!output) {
           console.log(`api/[${slug}] !output`, {output});

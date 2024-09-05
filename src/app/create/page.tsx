@@ -162,10 +162,13 @@ export default function CreateApp() {
       return;
     }
 
+    const filteredInputs = inputs.filter(input => input.value !== null); // Exclude inputs with null value
+    // const filteredOutputs = outputs.filter(output => output.key !== null);
+
     const newApp: Configuration = {
       name: appName,
       type: appType,
-      inputs,
+      inputs: filteredInputs,
       outputs,
     };
 
@@ -249,7 +252,7 @@ export default function CreateApp() {
             model: model as `${string}/${string}`,
             version: version,
             inputs: Object.entries(eval(`(${inputString})`)).map(([key, value]: [string, any]) => ({
-              type: Array.isArray(value) ? 'array' : typeof value === 'boolean' ? 'boolean' : typeof value === 'number' ? 'number' : 'string',
+              type: Array.isArray(value) ? 'array' : typeof value === 'boolean' ? 'boolean' : typeof value === 'number' && Number.isInteger(value) ? 'integer' : 'string',
               key,
               value: value as any, // Explicitly cast value to any
               show: false,
@@ -333,7 +336,7 @@ export default function CreateApp() {
   };
 
   interface PropertyValue {
-    type: 'string' | 'array' | 'number' | 'boolean';
+    type: 'string' | 'array' | 'integer' | 'boolean';
     default?: string | number | boolean;
     description?: string;
     title?: string;
@@ -374,7 +377,7 @@ export default function CreateApp() {
           component: typedValue.component || 'prompt',
           key,
           type: typedValue.type,
-          value: (typedValue.default !== undefined ? typedValue.default : '') as string | number | boolean | undefined,
+          value: (typedValue.default !== undefined ? typedValue.default : null) as string | number | boolean | undefined,
           show: required.includes(key),
           placeholder: typedValue.description || '',
           label: typedValue.title || '',
