@@ -41,11 +41,11 @@ const configurationsObj: Configurations = [
     client: 'Pyramid-Flow/pyramid-flow',
     path: '/generate_video',
     inputs: [
-      { component: 'prompt', type: 'string', key: '', value: null, show: true},
-      { component: 'image', type: 'string', key: '', value: null, show: true}
+      { component: 'prompt', type: 'string', key: 'prompt', value: null, show: true},
+      { component: 'image', type: 'string', key: 'image', value: null, show: true},
+      { component: 'prompt', type: 'integer', key: 'duration', value: 1, show: false},
     ],
     outputs: [
-
     ]
   }
   {
