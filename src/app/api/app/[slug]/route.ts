@@ -29,7 +29,7 @@ export async function POST(
       );
     }
 
-    console.log('Fetched configurations:', configurations);
+    console.log('Fetched configurations:', configurations.map(conf => conf.name));
 
     const config = configurations.find(conf => conf.name === slug);
 
@@ -41,7 +41,7 @@ export async function POST(
       );
     }
 
-    console.log('Found configuration:', config);
+    console.log('Found configuration:', config.name);
 
     const evfSamConfig = configurations.find(conf => conf.name === 'EVF-SAM');
 
@@ -175,22 +175,30 @@ export async function POST(
           { status: 201 }
         );
       } else if (config && config.type === 'gradio') {
-        const params = config.inputs.map(item => {
-          if(item.show) {
-            if(item.component === 'image') {
-              const newImg = req.image[indImg];
-              indImg++;
-              return newImg;
-            } else if (item.component === 'prompt') {
-              return req.prompt;
-            } else {
-              return item.value;
-            }
-          }
-        });
-        const app = await Client.connect(config.client as string);
-        const output = await app.predict("/tryon", params)
+        const params: Record<string, any> = {};
+        let indImg = 0;
 
+        
+
+        for (const item of config.inputs) {
+          if (item.component === 'image') {
+            const image = req.image[indImg];
+            if (typeof image === 'string' && image.startsWith('data:image/')) {
+              params[item.key] = await handle_file(await convertBase64ToBlob(image));
+            } else {
+              params[item.key] = await handle_file(image);
+            }
+            indImg++;
+          } else {
+            params[item.key] = req[item.key] !== undefined ? req[item.key] : item.value;
+          }
+        }
+        console.log({params});
+        const app = await Client.connect(config.client as string);
+        console.log('flag3 after app');
+        const output = await app.predict(config.path as string, params);
+        console.log('flag4 after output');
+        
         console.log({output});
         if (!output) {
           console.log('Something went wrong');
@@ -293,6 +301,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (error: any) {
+    console.log({error});
     console.error("api/app/[] general error" + JSON.stringify(error.message, null, 2));
     return NextResponse.json(
       { error: error.message },
@@ -419,4 +428,9 @@ function getModel({slug}: {slug: string}) {
   }
 
   return {sheme};
+}
+
+async function convertBase64ToBlob(base64: string): Promise<Blob> {
+  const response = await fetch(base64);
+  return await response.blob();
 }

@@ -35,7 +35,19 @@ const configurationsObj: Configurations = [
     outputs: [
       { type: 'image', placeholder: 'Segmented Image, combined mask', key:'combined_mask', show: true },
     ],
-  },
+  },{
+    name: 'pyramid-flow',
+    type: 'gradio',
+    client: 'Pyramid-Flow/pyramid-flow',
+    path: '/generate_video',
+    inputs: [
+      { component: 'prompt', type: 'string', key: '', value: null, show: true},
+      { component: 'image', type: 'string', key: '', value: null, show: true}
+    ],
+    outputs: [
+
+    ]
+  }
   {
     name: 'EVF-SAM',
     type: 'gradio',
@@ -48,6 +60,56 @@ const configurationsObj: Configurations = [
     outputs: [
       { type: 'image', placeholder: 'Visualitation', key:'visulization', show: true },
       { type: 'image', placeholder: 'mask', key:'mask', show: true },
+    ],
+  },
+  {
+    name: 'Hivision',
+    type: 'gradio',
+    client: 'TheEeeeLin/HivisionIDPhotos',
+    path: '/idphoto_inference',
+    inputs: [
+      { component: 'image', type: 'string', key: 'input_image', value: 'https://theeeeelin-hivisionidphotos.hf.space/file=/tmp/gradio/5bf86fbc980e461b32c5e52a47b8f5c0909f27e3ab146f7e0155e72f49be4e06/test2.jpg', show: true },
+      { component: 'prompt', type: 'string', key: 'mode_option', label: 'Mode Option', value: "Size List", show: false }, // Added component and changed show to false
+      { component: 'prompt', type: 'string', key: 'size_list_option', label: 'Size List Option', value: "One inch (413, 295)", show: false }, // Added component and changed show to false
+      { component: 'prompt', type: 'string', key: 'color_option', label: 'Color Option', value: "Blue", show: true }, // Added component and changed show to false
+      { component: 'prompt', type: 'string', key: 'render_option', label: 'Render Option', value: "Solid Color", show: false }, // Added component and changed show to false
+      { component: 'prompt', type: 'string', key: 'image_kb_options', label: 'Image KB Options', value: "Not Set", show: false },
+      { component: 'number', type: 'integer', key: 'custom_color_R', value: 0, show: false },
+      { component: 'number', type: 'integer', key: 'custom_color_G', value: 0, show: false },
+      { component: 'number', type: 'integer', key: 'custom_color_B', value: 0, show: false },
+      { component: 'number', type: 'integer', key: 'custom_size_height', value: 413, show: false }, // Added component and changed show to false
+      { component: 'number', type: 'integer', key: 'custom_size_width', value: 295, show: false }, // Added component and changed show to false
+      { component: 'number', type: 'integer', key: 'custom_image_kb', value: 50, show: false }, // Added component and changed show to false
+      { component: 'prompt', type: 'string', key: 'language', label: 'Language', value: "English", show: false }, // Added component and changed show to false
+      { component: 'prompt', type: 'string', key: 'matting_model_option', label: 'Matting Model Option', value: "modnet_photographic_portrait_matting", show: false }, // Added component and changed show to false
+    ],
+    outputs: [
+      { component: 'image', type: 'string', placeholder: 'Visualitation', key:'visulization', show: true },
+      { component: 'image', type: 'string', placeholder: 'mask', key:'mask', show: true },
+    ],
+  },
+  {
+    name: 'FineGrainImageEnhancer',
+    type: 'gradio',
+    client: 'finegrain/finegrain-image-enhancer',
+    path: '/process',
+    inputs: [
+      { component: 'image', type: 'string', key: 'input_image', value: null, show: true }, // Added input for image
+      { component: 'prompt', type: 'string', key: 'prompt', value: "Hello!!", show: false },
+      { component: 'prompt', type: 'string', key: 'negative_prompt', value: "Hello!!", show: false },
+      { component: 'number', type: 'integer', key: 'seed', value: 0, show: false },
+      { component: 'number', type: 'integer', key: 'upscale_factor', value: 1, show: false },
+      { component: 'number', type: 'integer', key: 'controlnet_scale', value: 0, show: false },
+      { component: 'number', type: 'integer', key: 'controlnet_decay', value: 0.5, show: false },
+      { component: 'number', type: 'integer', key: 'condition_scale', value: 2, show: false },
+      { component: 'number', type: 'integer', key: 'tile_width', value: 64, show: false },
+      { component: 'number', type: 'integer', key: 'tile_height', value: 64, show: false },
+      { component: 'number', type: 'integer', key: 'denoise_strength', value: 0, show: false },
+      { component: 'number', type: 'integer', key: 'num_inference_steps', value: 1, show: false },
+      { component: 'prompt', type: 'string', key: 'solver', value: "DDIM", show: false },
+    ],
+    outputs: [
+      { component: 'image', type: 'string', placeholder: 'Processed Image', key: 'output_image', show: true },
     ],
   },
   {
@@ -89,6 +151,7 @@ async function fetchConfigurations(timestamp?: number) {
 async function getConfigurations(forceRefresh: boolean = false): Promise<Configurations> {
   const timestamp = forceRefresh ? Date.now() : undefined;
   const fetchedConfigurations = await fetchConfigurations(timestamp);
+  console.log({fetchedConfigurations});
   return fetchedConfigurations ? [...configurationsObj, ...fetchedConfigurations] : configurationsObj;
 }
 
