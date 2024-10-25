@@ -35,19 +35,24 @@ const configurationsObj: Configurations = [
     outputs: [
       { type: 'image', placeholder: 'Segmented Image, combined mask', key:'combined_mask', show: true },
     ],
-  },{
+  },
+  {
     name: 'pyramid-flow',
     type: 'gradio',
     client: 'Pyramid-Flow/pyramid-flow',
     path: '/generate_video',
     inputs: [
-      { component: 'prompt', type: 'string', key: 'prompt', value: null, show: true},
-      { component: 'image', type: 'string', key: 'image', value: null, show: true},
-      { component: 'prompt', type: 'integer', key: 'duration', value: 1, show: false},
+      { component: 'prompt', type: 'string', key: 'prompt', value: null, show: true },
+      { component: 'image', type: 'string', key: 'image', value: null, show: true },
+      { component: 'prompt', type: 'integer', key: 'duration', value: 1, show: false },
+      { component: 'prompt', type: 'integer', key: 'guidance_scale', value: 1 },
+      { component: 'prompt', type: 'integer', key: 'video_guidance_scale', value: 1 },
+      { component: 'prompt', type: 'integer', key: 'frames_per_second', value: 8 }
     ],
     outputs: [
+      { component: 'video', type: 'string', key: 'visualitation', placeholder: 'video output', show: true }
     ]
-  }
+  },
   {
     name: 'EVF-SAM',
     type: 'gradio',

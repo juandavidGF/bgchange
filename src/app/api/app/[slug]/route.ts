@@ -193,9 +193,8 @@ export async function POST(
             params[item.key] = req[item.key] !== undefined ? req[item.key] : item.value;
           }
         }
-        console.log({params});
+        console.log({config});
         const app = await Client.connect(config.client as string);
-        console.log('flag3 after app');
         const output = await app.predict(config.path as string, params);
         console.log('flag4 after output');
         
