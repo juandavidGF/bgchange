@@ -349,26 +349,30 @@ export default function CreateApp() {
     component?: 'image' | 'prompt' | 'checkbox' | 'number' | 'video';
   }
 
-  const handleFetchModelDetails = async () => {
+  const handleFetchModelDetails = async (type: 'replicate' | 'gradio') => {
     try {
       const response = await fetch('/api/create/fetch-model-details', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ model, version }), // Send model and version in the request body
+        body: JSON.stringify({ type, client, model, version }), // Send model and version in the request body
       });
 
       if (!response.ok) {
         throw new Error('Failed to fetch model data');
       }
-
+      
       const data = await response.json();
 
       console.log('Fetched data:', data);
 
       // Populate inputs based on the schema
-      const { inputs, outputs, required } = data; // Destructure inputs, outputs, and required from data
+      const { inputs, outputs, required, formattedEndpoints, app_info, app } = data;
+      console.log({app_info, app});
+
+      console.log({formattedEndpoints});
+      console.log({inputs, outputs});
 
       // Process inputs
       const inputItems: InputItem[] = Object.entries(inputs).map(([key, value]) => {
@@ -378,11 +382,10 @@ export default function CreateApp() {
           key,
           type: typedValue.type,
           value: (typedValue.default !== undefined ? typedValue.default : null) as string | number | boolean | undefined,
-          show: required.includes(key),
+          show: required?.includes(key),
           placeholder: typedValue.description || '',
           label: typedValue.title || '',
-          required: required.includes(key),
-          
+          required: required?.includes(key),
         };
       });
       
@@ -576,7 +579,7 @@ export default function CreateApp() {
               </div>
               <button
                 type="button"
-                onClick={handleFetchModelDetails}
+                onClick={() => handleFetchModelDetails('replicate')}
                 disabled={isLoading || !model}
                 className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
               >
@@ -588,16 +591,24 @@ export default function CreateApp() {
           {appType === 'gradio' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Model URL:</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Client:</label>
                 <input
                   type="text"
-                  value={modelUrl}
-                  onChange={(e) => setModelUrl(e.target.value)}
-                  placeholder="Enter Gradio model URL"
+                  value={client}
+                  onChange={(e) => setClient(e.target.value)}
+                  placeholder="Enter the gradio client"
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div>
+              <button
+                type="button"
+                onClick={() => handleFetchModelDetails('gradio')}
+                disabled={isLoading || !client}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
+              >
+                {isLoading ? 'Fetching...' : 'Fetch Model Details'}
+              </button>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Raw Data (Optional):</label>
                 <textarea
                   ref={textareaRef}
@@ -606,11 +617,11 @@ export default function CreateApp() {
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-[20vh]"
                   placeholder='Paste raw data here (optional)...'
                 />
-              </div>
+              </div> */}
             </div>
           )}
 
-          {appType === 'gradio' && (
+          {/* {appType === 'gradio' && (
             <button
               type="button"
               onClick={handleParseRawData}
@@ -618,7 +629,7 @@ export default function CreateApp() {
             >
               Parse Raw Data
             </button>
-          )}
+          )} */}
         </>
       ) : (
         <form onSubmit={handleSubmit}>
@@ -731,7 +742,7 @@ export default function CreateApp() {
                     <div className="mt-4">
                       <button
                         type="button"
-                        onClick={handleFetchModelDetails}
+                        onClick={() => handleFetchModelDetails('replicate')}
                         className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
                       >
                         Re-fetch Model Details

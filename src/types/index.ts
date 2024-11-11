@@ -23,7 +23,7 @@ export type ImageAreaProps = {
 export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | "tryon"  | "EVF-SAM";
 
 export type InputItem = {
-  component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video';
+  component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video' | 'Textbox';
   key: string;
   placeholder?: string;
   type: 'string' | 'array' | 'integer' | 'boolean';

@@ -1,33 +1,91 @@
 import { NextResponse } from 'next/server';
+import { Client, handle_file } from "@gradio/client";
+import { InputItem, OutputItem } from '@/types';
 
 export async function POST(request: Request) {
-  const { model, version } = await request.json();
-
+  const { type, client, model, version } = await request.json();
+  
   try {
-    const response = await fetch(`https://api.replicate.com/v1/models/${model}/versions/${version}`, {
-      headers: {
-        'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    if (type === 'replicte') {
+      const response = await fetch(`https://api.replicate.com/v1/models/${model}/versions/${version}`, {
+        headers: {
+          'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to fetch model details');
+      }
+  
+      const data = await response.json();
+      // console.log(JSON.stringify(data, null, 2));
+      const inputs = data.openapi_schema.components.schemas.Input.properties;
+      const outputs = data.openapi_schema.components.schemas.Output;
+      const required = data.openapi_schema.components.schemas.Input.required;
+  
+      // console.log('Fetching model:', model, 'version:', version);
+      // console.log('API response status:', response.status);
+      // console.log('API response:', JSON.stringify({inputs, outputs}, null, 2));
+  
+      return NextResponse.json({ inputs, outputs, required });
+    } else if (type === 'gradio') {
+      const app = await Client.connect(String(client));
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch model details');
+      
+      const app_info = await app.view_api();
+
+      // console.log(JSON.stringify(app_info, null, 2));
+      
+      const formattedEndpoints = await convertToIO({app_info, app});
+
+      const { inputs, outputs } = formattedEndpoints[0];
+
+      // console.log(JSON.stringify(inputs,null, 2));
+
+      // console.log('xxxxxx', { inputs, outputs, required, app, app_info });
+
+      return NextResponse.json({ inputs, outputs, formattedEndpoints, app, app_info });
     }
-
-    const data = await response.json();
-    // console.log(JSON.stringify(data, null, 2));
-    const inputs = data.openapi_schema.components.schemas.Input.properties;
-    const outputs = data.openapi_schema.components.schemas.Output;
-    const required = data.openapi_schema.components.schemas.Input.required;
-
-    // console.log('Fetching model:', model, 'version:', version);
-    // console.log('API response status:', response.status);
-    // console.log('API response:', JSON.stringify({inputs, outputs}, null, 2));
-
-    return NextResponse.json({ inputs, outputs, required });
   } catch (error: any) {
     console.error('Error fetching model details:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+async function convertToIO({app_info, app}: {app_info: any, app?: any}) {
+  function formatIO({key, valueObject}: {key: any, valueObject: any}) {
+    let inputs: Partial<InputItem>[] = [];
+    let outputs: Partial<OutputItem>[] = [];
+    valueObject.parameters.forEach((item: any, i: number) => {
+      inputs[i] = {};
+      inputs[i].key = item.parameter_name;
+      inputs[i].component = item.component;
+      inputs[i].label = item.label;
+      inputs[i].value = item.parameter_default;
+      inputs[i].type = item.type;
+      inputs[i].description = item.example;
+    });
+
+    valueObject.parameters.forEach((item: any, i: number) => {
+      outputs[i] = {};
+      outputs[i].component = item.component;
+      outputs[i].title = item.label;
+      outputs[i].type = item.type;
+      outputs[i].formatItem = item?.python_type?.type;
+    });
+
+    return {inputs, outputs}
+  }
+  
+  if (app_info) {
+    let formattedEndpoints: any = [];
+    const {named_endpoints} = app_info;
+    Object.entries(named_endpoints).forEach(async ([key, valueObject]) => {
+      const {inputs, outputs} = await formatIO({key, valueObject});
+      formattedEndpoints.push({key, inputs, outputs});
+    });
+    return formattedEndpoints;
+  }
+  return null;
 }
