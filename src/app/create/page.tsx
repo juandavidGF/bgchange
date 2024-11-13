@@ -369,61 +369,81 @@ export default function CreateApp() {
 
       // Populate inputs based on the schema
       const { inputs, outputs, required, formattedEndpoints, app_info, app } = data;
-      console.log({app_info, app});
-
       console.log({formattedEndpoints});
-      console.log({inputs, outputs});
 
-      // Process inputs
-      const inputItems: InputItem[] = Object.entries(inputs).map(([key, value]) => {
-        const typedValue = value as PropertyValue;
-        return {
-          component: typedValue.component || 'prompt',
-          key,
-          type: typedValue.type,
-          value: (typedValue.default !== undefined ? typedValue.default : null) as string | number | boolean | undefined,
-          show: required?.includes(key),
-          placeholder: typedValue.description || '',
-          label: typedValue.title || '',
-          required: required?.includes(key),
-        };
-      });
+      let inputItems: Partial<InputItem[]> = [];
+      let outputItems: Partial<OutputItem[]> = [];
+
+      if (type === 'gradio') {
+        inputItems = inputs.map((value: any) => {
+          return {
+            component: value.component || 'prompt',
+            key: value.key,
+            type: value.type,
+            value: (value.default !== undefined ? value.default : null) as string | number | boolean | undefined,
+            show: value.show,
+            placeholder: value.description || '',
+            label: value.title || '',
+            required: value.show,
+          };
+        });
+
+        const outputItems: OutputItem[] = outputs;
+
+      } else {
+        // Process inputs
+        inputItems = Object.entries(inputs).map(([key, value]) => {
+          const typedValue = value as PropertyValue;
+          return {
+            component: typedValue.component || 'prompt',
+            key,
+            type: typedValue.type,
+            value: (typedValue.default !== undefined ? typedValue.default : null) as string | number | boolean | undefined,
+            show: required?.includes(key),
+            placeholder: typedValue.description || '',
+            label: typedValue.title || '',
+            required: required?.includes(key),
+          };
+        });
       
-      // Process outputs
-      const processOutput = (key: string, value: PropertyValue): OutputItem => {
-        let outputItem: OutputItem = {
-          component: value.component || 'image',
-          key,
-          type: value.type as 'string' | 'number' | 'boolean' | 'array',
-          show: true,
-          title: value.title || key,
-          placeholder: value.description || '',
-        };
-      
-        if (value.type === 'array' && value.items) {
-          outputItem.typeItem = value.items.type as 'string' | 'number' | 'boolean';
-          if (value.items.format) {
-            outputItem.formatItem = value.items.format;
+        // Process outputs
+        const processOutput = (key: string, value: PropertyValue): OutputItem => {
+          let outputItem: OutputItem = {
+            component: value.component || 'image',
+            key,
+            type: value.type as 'string' | 'number' | 'boolean' | 'array',
+            show: true,
+            title: value.title || key,
+            placeholder: value.description || '',
+          };
+        
+          if (value.type === 'array' && value.items) {
+            outputItem.typeItem = value.items.type as 'string' | 'number' | 'boolean';
+            if (value.items.format) {
+              outputItem.formatItem = value.items.format;
+            }
+          } else if (value.type === 'string' && value.format) {
+            outputItem.format = value.format;
           }
-        } else if (value.type === 'string' && value.format) {
-          outputItem.format = value.format;
-        }
-      
-        return outputItem;
-      };
+        
+          return outputItem;
+        };
 
-      const outputItems: OutputItem[] = 
-        Object.entries({outputs}).map(([key, value]) => processOutput(key, value as PropertyValue));
+        outputItems = Object.entries({outputs}).map(([key, value]) => processOutput(key, value as PropertyValue));
+      }
+        
 
       // Sort inputs to have required fields at the top
-      const sortedInputs = [
-        ...inputItems.filter((input: InputItem) => input.required),
-        ...inputItems.filter((input: InputItem) => !input.required),
-      ];
+      // const sortedInputs = [
+      //   ...inputItems.filter((input: InputItem) => input.required),
+      //   ...inputItems.filter((input: InputItem) => !input.required),
+      // ];
 
-      setInputs(sortedInputs);
-      setOutputs(outputItems);
-      updateJsonConfig(sortedInputs, outputItems);
+      const validInputs = inputItems.filter((item): item is InputItem => item !== undefined);
+      const validOutputs = outputItems.filter((item): item is OutputItem => item !== undefined);
+      setInputs(validInputs);
+      setOutputs(validOutputs);
+      updateJsonConfig(validInputs, validOutputs);
       setIsRawDataStep(false);
     } catch (error) {
       console.error('Error fetching model details:', error);

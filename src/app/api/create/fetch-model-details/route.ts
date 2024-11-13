@@ -19,31 +19,23 @@ export async function POST(request: Request) {
       }
   
       const data = await response.json();
-      // console.log(JSON.stringify(data, null, 2));
+      
       const inputs = data.openapi_schema.components.schemas.Input.properties;
       const outputs = data.openapi_schema.components.schemas.Output;
       const required = data.openapi_schema.components.schemas.Input.required;
-  
-      // console.log('Fetching model:', model, 'version:', version);
-      // console.log('API response status:', response.status);
-      // console.log('API response:', JSON.stringify({inputs, outputs}, null, 2));
   
       return NextResponse.json({ inputs, outputs, required });
     } else if (type === 'gradio') {
       const app = await Client.connect(String(client));
 
-      
       const app_info = await app.view_api();
-
-      // console.log(JSON.stringify(app_info, null, 2));
+      console.log(JSON.stringify(app_info, null, 2));
       
       const formattedEndpoints = await convertToIO({app_info, app});
 
       const { inputs, outputs } = formattedEndpoints[0];
 
-      // console.log(JSON.stringify(inputs,null, 2));
-
-      // console.log('xxxxxx', { inputs, outputs, required, app, app_info });
+      console.log('fetch-format function', {inputs, outputs});
 
       return NextResponse.json({ inputs, outputs, formattedEndpoints, app, app_info });
     }
@@ -67,7 +59,7 @@ async function convertToIO({app_info, app}: {app_info: any, app?: any}) {
       inputs[i].description = item.example;
     });
 
-    valueObject.parameters.forEach((item: any, i: number) => {
+    valueObject.returns.forEach((item: any, i: number) => {
       outputs[i] = {};
       outputs[i].component = item.component;
       outputs[i].title = item.label;
@@ -82,7 +74,7 @@ async function convertToIO({app_info, app}: {app_info: any, app?: any}) {
     let formattedEndpoints: any = [];
     const {named_endpoints} = app_info;
     Object.entries(named_endpoints).forEach(async ([key, valueObject]) => {
-      const {inputs, outputs} = await formatIO({key, valueObject});
+      const {inputs, outputs} = formatIO({key, valueObject});
       formattedEndpoints.push({key, inputs, outputs});
     });
     return formattedEndpoints;
