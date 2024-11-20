@@ -33,11 +33,7 @@ export async function POST(request: Request) {
       
       const formattedEndpoints = await convertToIO({app_info, app});
 
-      const { inputs, outputs } = formattedEndpoints[0];
-
-      console.log('fetch-format function', {inputs, outputs});
-
-      return NextResponse.json({ inputs, outputs, formattedEndpoints, app, app_info });
+      return NextResponse.json({ formattedEndpoints, app, app_info });
     }
   } catch (error: any) {
     console.error('Error fetching model details:', error.message);

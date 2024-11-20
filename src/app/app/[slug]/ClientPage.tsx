@@ -727,7 +727,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
 
     setLoading(false);
   }
-
+  
   return (
     <main className="flex min-h-screen flex-col py-10 lg:pl-72">
       {error ? <ErrorNotification errorMessage={error} /> : null}

@@ -41,7 +41,7 @@ export default function CreateApp() {
   const router = useRouter();
 
   const [isRawDataStep, setIsRawDataStep] = useState(true);
-  const [appType, setAppType] = useState<'gradio' | 'replicate'>('replicate');
+  const [appType, setAppType] = useState<'gradio' | 'replicate'>('gradio');
   const [rawData, setRawData] = useState('');
   const [modelUrl, setModelUrl] = useState('');
   const [modelData, setModelData] = useState<any>(null);
@@ -371,6 +371,13 @@ export default function CreateApp() {
       const { inputs, outputs, required, formattedEndpoints, app_info, app } = data;
       console.log({formattedEndpoints});
 
+      // I: I have the enpoints on formattedEndpoints
+      // 2 I should have a select on endpoint, and be able to select the endpoint
+      //    When changes the endpoint should appear the Inputs and Outputs,
+
+      // I have to change the logic, when 
+
+      // O: can be able to select the endpoint when is gradio.
       let inputItems: Partial<InputItem[]> = [];
       let outputItems: Partial<OutputItem[]> = [];
 
@@ -383,12 +390,21 @@ export default function CreateApp() {
             value: (value.default !== undefined ? value.default : null) as string | number | boolean | undefined,
             show: value.show,
             placeholder: value.description || '',
-            label: value.title || '',
+            label: value.label || '',
             required: value.show,
           };
         });
 
-        const outputItems: OutputItem[] = outputs;
+        outputItems = outputItems.map((value:any) => {
+          return {
+            component: value.component,
+            title: value.title,
+            formatItem: value.formatItem,
+            type: value.type,
+            show: true,
+            key: value.name,
+          }
+        })
 
       } else {
         // Process inputs
