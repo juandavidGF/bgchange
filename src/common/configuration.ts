@@ -54,20 +54,6 @@ const configurationsObj: Configurations = [
     ]
   },
   {
-    name: 'EVF-SAM',
-    type: 'gradio',
-    client: 'wondervictor/evf-sam',
-    path: '/predict',
-    inputs: [
-      { component: 'image', type: 'image', key: 'image_np', value: null, show: true },
-      { type: 'prompt', key: 'prompt', label: 'Prompt', description: 'Use a phrase or sentence to describe the object you want to segment. Currently we only support English', value: null, show: true },
-    ],
-    outputs: [
-      { type: 'image', placeholder: 'Visualitation', key:'visulization', show: true },
-      { type: 'image', placeholder: 'mask', key:'mask', show: true },
-    ],
-  },
-  {
     name: 'Hivision',
     type: 'gradio',
     client: 'TheEeeeLin/HivisionIDPhotos',
@@ -112,6 +98,62 @@ const configurationsObj: Configurations = [
       { component: 'number', type: 'integer', key: 'denoise_strength', value: 0, show: false },
       { component: 'number', type: 'integer', key: 'num_inference_steps', value: 1, show: false },
       { component: 'prompt', type: 'string', key: 'solver', value: "DDIM", show: false },
+    ],
+    outputs: [
+      { component: 'image', type: 'string', placeholder: 'Processed Image', key: 'output_image', show: true },
+    ],
+  },
+  {
+    name: 'EVF-SAM',
+    type: 'gradio',
+    client: 'wondervictor/evf-sam',
+    path: '/predict',
+    inputs: [
+      { component: 'image', type: 'string', key: 'image_np', value: null, show: true },
+      { component: 'prompt' ,type: 'string', key: 'prompt', label: 'Prompt', description: 'Use a phrase or sentence to describe the object you want to segment. Currently we only support English', value: null, show: true },
+    ],
+    outputs: [
+      { component: 'image', type: 'array', placeholder: 'Visualitation', key:'visulization', show: true },
+      { component: 'image', type: 'array', placeholder: 'mask', key:'mask', show: true },
+    ],
+  },
+  {
+    name: 'Spanish-F5',
+    type: 'gradio',
+    client: 'jpgallegoar/Spanish-F5',
+    path: '/predict',
+    inputs: [
+      { component: 'image', type: 'string', key: 'image_np', value: null, show: true },
+      { component: 'prompt' ,type: 'string', key: 'prompt', label: 'Prompt', description: 'Use a phrase or sentence to describe the object you want to segment. Currently we only support English', value: null, show: true },
+    ],
+    outputs: [
+      { component: 'image', type: 'array', placeholder: 'Visualitation', key:'visulization', show: true },
+      { component: 'image', type: 'array', placeholder: 'mask', key:'mask', show: true },
+    ],
+  },
+  {
+    name: 'logo-context',
+    type: 'gradio',
+    client: 'multimodalart/logo-in-context',
+    path: '/generate',
+    inputs: [
+      { component: 'image', type: 'string', key: 'image', placeholder: 'Upload Logo Imagen',value: null, show: true }, // Added input for image
+      { component: 'prompt', type: 'string', key: 'prompt_description', label: 'Describe your logo', value: "Hello!!", show: true },
+      { component: 'prompt', type: 'string', key: 'prompt_user', label: 'Where should the logo be applied?', value: "Hello!!", show: true },
+    ],
+    outputs: [
+      { component: 'image', type: 'array', placeholder: 'Processed Image', key: 'output_image', show: true },
+    ],
+  },
+  {
+    name: 'consistent-character',
+    type: 'gradio',
+    client: 'Kwai-Kolors/Kolors-Character-With-Flux',
+    path: '/generate',
+    inputs: [
+      { component: 'image', type: 'string', key: 'image', placeholder: 'Upload Logo Imagen',value: null, show: true }, // Added input for image
+      { component: 'prompt', type: 'string', key: 'prompt_description', label: 'Describe your logo', value: "Hello!!", show: true },
+      { component: 'prompt', type: 'string', key: 'prompt_user', label: 'Where should the logo be applied?', value: "Hello!!", show: true },
     ],
     outputs: [
       { component: 'image', type: 'string', placeholder: 'Processed Image', key: 'output_image', show: true },

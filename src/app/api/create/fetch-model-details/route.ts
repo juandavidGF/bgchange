@@ -28,8 +28,9 @@ export async function POST(request: Request) {
     } else if (type === 'gradio') {
       const app = await Client.connect(String(client));
 
+      
+      console.log('flag1')
       const app_info = await app.view_api();
-      console.log(JSON.stringify(app_info, null, 2));
       
       const formattedEndpoints = await convertToIO({app_info, app});
 
@@ -67,6 +68,7 @@ async function convertToIO({app_info, app}: {app_info: any, app?: any}) {
   }
   
   if (app_info) {
+    console.log({app_info});
     let formattedEndpoints: any = [];
     const {named_endpoints} = app_info;
     Object.entries(named_endpoints).forEach(async ([key, valueObject]) => {
@@ -74,6 +76,7 @@ async function convertToIO({app_info, app}: {app_info: any, app?: any}) {
       formattedEndpoints.push({key, inputs, outputs});
     });
     return formattedEndpoints;
+  } else {
+    return null;
   }
-  return null;
 }

@@ -178,8 +178,6 @@ export async function POST(
         const params: Record<string, any> = {};
         let indImg = 0;
 
-        
-
         for (const item of config.inputs) {
           if (item.component === 'image') {
             const image = req.image[indImg];
@@ -193,10 +191,20 @@ export async function POST(
             params[item.key] = req[item.key] !== undefined ? req[item.key] : item.value;
           }
         }
-        console.log({config});
-        const app = await Client.connect(config.client as string);
-        const output = await app.predict(config.path as string, params);
-        console.log('flag4 after output');
+        const client = config.client;
+        const path = config.path;
+        console.log(JSON.stringify(config, null, 2));
+        console.log({client, path, params})
+        let output: any;
+        try {
+          const app = await Client.connect(client as string);
+          console.log('flag 1 - gradio client', {app})
+          output = await app.predict(path as string, params);
+          console.log('flag 1 - gradio predict')
+        } catch (error: any) {
+          throw Error('gradio predict error', error.message);
+        }
+        
         
         console.log({output});
         if (!output) {
@@ -211,8 +219,6 @@ export async function POST(
           output.data,
           { status: 201 }
         );
-
-        
       }
     } else if (slug !== 'freshink' 
         && slug !== 'createVideo'

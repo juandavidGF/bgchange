@@ -6,6 +6,12 @@ import { PlusCircle, X, ChevronDown, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getConfigurations } from '@/common/configuration';
 
+interface GradioEndpoint {
+  key: string;
+  inputs: InputItem[];
+  outputs: OutputItem[];
+}
+
 const JsonEditor = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollPositionRef = useRef<number>(0);
@@ -62,6 +68,8 @@ export default function CreateApp() {
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null); // State for loading message
   const [successMessage, setSuccessMessage] = useState<string | null>(null); // State for success message
   const [endpoint, setEndpoint] = useState('');
+  const [endpoints, setEndpoints] = useState<string[]>([]);
+  const [gradioEndpoints, setGradioEndpoints] = useState<GradioEndpoint[] | undefined>(undefined);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -70,6 +78,7 @@ export default function CreateApp() {
       name: appName,
       type: appType,
       ...(appType === 'gradio' ? { client, path, endpoint } : { model, version }),
+      endpoint,
       inputs: inputs.map(input => ({
         type: input.type,
         key: input.key,
@@ -100,6 +109,19 @@ export default function CreateApp() {
       setInputs(initialInputs);
     }
   }, [configurations]);
+
+  useEffect(() => {
+    if (gradioEndpoints) {
+      const gradioEndpoint = gradioEndpoints.find((item) => item.key === endpoint);
+      console.log({gradioEndpoint});
+      if (gradioEndpoint) {
+        const { inputs, outputs, key } = gradioEndpoint;
+        console.log({key, inputs, outputs});
+        setInputs(inputs || []);
+        setOutputs(outputs || []);
+      }
+    }
+  }, [endpoint]);
 
   const handleInputChange = (index: number, field: keyof InputItem, value: any) => {
     setInputs(prevInputs => {
@@ -214,7 +236,7 @@ export default function CreateApp() {
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   };
-
+  
   const handleParseRawData = () => {
     console.log({rawData});
     
@@ -225,9 +247,9 @@ export default function CreateApp() {
       setErrorMessage('Invalid format for Replicate raw data. Please check your input.');
       return;
     }
-
+    
     console.log({isReplicate});
-
+    
     if (isReplicate) {
       const step2Regex = /"([^:]+\/[^:]+):([^"]+)"/;
       const modelMatch = rawData.match(step2Regex);
@@ -369,6 +391,10 @@ export default function CreateApp() {
 
       // Populate inputs based on the schema
       const { inputs, outputs, required, formattedEndpoints, app_info, app } = data;
+      if (!app_info) {
+        console.log({app});
+        return;
+      }
       console.log({formattedEndpoints});
 
       // I: I have the enpoints on formattedEndpoints
@@ -378,11 +404,27 @@ export default function CreateApp() {
       // I have to change the logic, when 
 
       // O: can be able to select the endpoint when is gradio.
+
+      // It should happens depends on the endpoint, for example have one as default.
+      // So here I should just I mean, update the endpoint, and for that endpoint,
+      //  update the respective inputs and outputs,
+      // So I can select the formattedParams to zero, and so on, and get the inputs, and otputs for that.
+      // And, yeah, maybe review the useEffect, when something change here,
+
       let inputItems: Partial<InputItem[]> = [];
       let outputItems: Partial<OutputItem[]> = [];
 
+
       if (type === 'gradio') {
-        inputItems = inputs.map((value: any) => {
+        console.log({type})
+
+        const endpoints = formattedEndpoints.map((item: any) => item.key);
+        
+        const tmpEndpoint = endpoints[0];
+        const tmpInputs = formattedEndpoints[0]?.inputs;
+        const tmpOutputs = formattedEndpoints[0]?.outputs;
+        
+        inputItems = tmpInputs.map((value: any) => {
           return {
             component: value.component || 'prompt',
             key: value.key,
@@ -394,8 +436,8 @@ export default function CreateApp() {
             required: value.show,
           };
         });
-
-        outputItems = outputItems.map((value:any) => {
+        
+        outputItems = tmpOutputs.map((value:any) => {
           return {
             component: value.component,
             title: value.title,
@@ -404,8 +446,11 @@ export default function CreateApp() {
             show: true,
             key: value.name,
           }
-        })
+        });
 
+        setEndpoints(endpoints);
+        setEndpoint(tmpEndpoint);
+        setGradioEndpoints(formattedEndpoints);
       } else {
         // Process inputs
         inputItems = Object.entries(inputs).map(([key, value]) => {
@@ -461,8 +506,8 @@ export default function CreateApp() {
       setOutputs(validOutputs);
       updateJsonConfig(validInputs, validOutputs);
       setIsRawDataStep(false);
-    } catch (error) {
-      console.error('Error fetching model details:', error);
+    } catch (error: any) {
+      console.error('Error fetching model details:', error.message);
       alert('Error fetching model data. Please check the URL and try again.');
     }
   };
@@ -568,7 +613,7 @@ export default function CreateApp() {
     updateJsonConfig(inputs, outputs);
   };
 
-  const handleEndpointChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEndpointChange = (e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement>) => {
     setEndpoint(e.target.value);
     updateJsonConfig(inputs, outputs);
   };
@@ -744,13 +789,24 @@ export default function CreateApp() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1">Endpoint:</label>
-                    <input
-                      type="text"
-                      value={endpoint}
+                    {endpoints ? (
+                      <select
                       onChange={handleEndpointChange}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
+                      className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                      >
+                        {endpoints && endpoints.map((item: string) => 
+                          (<option key={item} value={item}>{item}</option>)
+                        )}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={endpoint}
+                        onChange={handleEndpointChange}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    )}
                   </div>
                 </div>
               ) : (
