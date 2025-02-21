@@ -172,7 +172,7 @@ export default function CreateApp() {
 
   const isFormValid = () => {
     const isInputsValid = inputs.length > 0 && inputs.every(input => input.key.trim() !== '');
-    const isOutputsValid = outputs.length > 0 && outputs.every(output => output.key.trim() !== '');
+    const isOutputsValid = outputs.length > 0;
     return isInputsValid && isOutputsValid && appName.trim() !== '';
   };
 
@@ -390,11 +390,8 @@ export default function CreateApp() {
       console.log('Fetched data:', data);
 
       // Populate inputs based on the schema
-      const { inputs, outputs, required, formattedEndpoints, app_info, app } = data;
-      if (!app_info) {
-        console.log({app});
-        return;
-      }
+      const { formattedEndpoints }: { formattedEndpoints: GradioEndpoint[] } = data;
+      
       console.log({formattedEndpoints});
 
       // I: I have the enpoints on formattedEndpoints
@@ -411,47 +408,37 @@ export default function CreateApp() {
       // So I can select the formattedParams to zero, and so on, and get the inputs, and otputs for that.
       // And, yeah, maybe review the useEffect, when something change here,
 
-      let inputItems: Partial<InputItem[]> = [];
-      let outputItems: Partial<OutputItem[]> = [];
+      let inputItems: InputItem[] = [];
+      let outputItems: OutputItem[] = [];
 
 
       if (type === 'gradio') {
         console.log({type})
 
         const endpoints = formattedEndpoints.map((item: any) => item.key);
-        
-        const tmpEndpoint = endpoints[0];
-        const tmpInputs = formattedEndpoints[0]?.inputs;
-        const tmpOutputs = formattedEndpoints[0]?.outputs;
-        
-        inputItems = tmpInputs.map((value: any) => {
-          return {
-            component: value.component || 'prompt',
-            key: value.key,
-            type: value.type,
-            value: (value.default !== undefined ? value.default : null) as string | number | boolean | undefined,
-            show: value.show,
-            placeholder: value.description || '',
-            label: value.label || '',
-            required: value.show,
-          };
-        });
-        
-        outputItems = tmpOutputs.map((value:any) => {
-          return {
-            component: value.component,
-            title: value.title,
-            formatItem: value.formatItem,
-            type: value.type,
-            show: true,
-            key: value.name,
-          }
-        });
+        const defaultEndpoint = endpoints[0]; // Default to first endpoint
 
+        // Set Gradio endpoints and default endpoint
         setEndpoints(endpoints);
-        setEndpoint(tmpEndpoint);
+        setEndpoint(defaultEndpoint);
         setGradioEndpoints(formattedEndpoints);
-      } else {
+        
+        // Find the default endpoint data
+        const defaultGradioEndpoint = formattedEndpoints.find((item) => item.key === defaultEndpoint);
+        if (defaultGradioEndpoint) {
+          inputItems = defaultGradioEndpoint.inputs || [];
+          outputItems = defaultGradioEndpoint.outputs || [];
+
+          // Immediately set inputs and outputs
+          setInputs(inputItems);
+          setOutputs(outputItems);
+
+          // Sync JSON config with default endpoint data
+          updateJsonConfig(inputItems, outputItems);
+        }
+
+        setIsRawDataStep(false); 
+      } else if (type === 'replicate') {
         // Process inputs
         inputItems = Object.entries(inputs).map(([key, value]) => {
           const typedValue = value as PropertyValue;

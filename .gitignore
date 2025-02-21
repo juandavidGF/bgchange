@@ -41,3 +41,7 @@ TODO.md
 productSpec.md
 
 /tmp
+
+playground/
+
+pnpm-lock.yaml

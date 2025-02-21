@@ -160,6 +160,25 @@ const configurationsObj: Configurations = [
     ],
   },
   {
+    name: "flux-ip-adapter",
+    type: "gradio",
+    client: "InstantX/flux-IP-adapter",
+    path: "/process_image",
+    inputs: [
+      { component: 'image', type: 'string', key: 'image', placeholder: 'Upload Logo Imagen',value: null, show: true },
+      { component: 'prompt', type: 'string', key: 'prompt', label: 'Describe your logo', value: "Hello!!", show: true },
+      { component: 'prompt', type: 'integer', key: 'scale', value: 0.7, show: false },
+      { component: 'prompt', type: 'integer', key: 'seed', value: 42, show: false },
+      { component: 'checkbox', type: 'boolean', key: 'randomize_seed', value: true, show: false },
+      { component: 'checkbox', type: 'boolean', key: 'width', value: 1024, show: false },
+      { component: 'checkbox', type: 'boolean', key: 'height', value: 1024, show: false },
+    ],
+    outputs: [
+      { component: 'image', type: 'array', format: 'string', placeholder: 'Processed Image', key: 'output_image', show: true },
+      { component: 'prompt', type: 'array', placeholder: 'Processed Image', key: 'seed', show: true },
+    ]
+  },
+  {
     name: 'consistent-character',
     type: 'replicate',
     model: 'fofr/consistent-character',
@@ -177,7 +196,7 @@ const configurationsObj: Configurations = [
     outputs: [
       { component: 'image', type: 'array', typeItem: 'string', format: 'uri', placeholder: 'characther', key:'output', show: true },
     ],
-  },
+  }
 ]
 
 // New function to fetch configurations

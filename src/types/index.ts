@@ -22,8 +22,9 @@ export type ImageAreaProps = {
 
 export type Slug = "createVideo" | "freshink" | "hairStyle" | "upscaler" | "livePortrait" | "tryon"  | "EVF-SAM";
 
+// Your type definitions
 export type InputItem = {
-  component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video' | 'Textbox';
+  component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video' | 'Textbox' | 'dropdown' | 'slider' | 'audio' | 'checkboxgroup';
   key: string;
   placeholder?: string;
   type: 'string' | 'array' | 'integer' | 'boolean';
@@ -36,13 +37,13 @@ export type InputItem = {
 };
 
 export interface OutputItem {
-  component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video';
+  component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video' | 'audio';
   key: string;
   placeholder?: string;
   type: 'string' | 'number' | 'boolean' | 'array';
   show: boolean;
   title?: string;
-  value?: string; // Add this line
+  value?: string;
   typeItem?: 'string' | 'number' | 'boolean';
   format?: string;
   formatItem?: string;
