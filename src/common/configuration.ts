@@ -217,7 +217,7 @@ async function fetchConfigurations(timestamp?: number) {
 async function getConfigurations(forceRefresh: boolean = false): Promise<Configurations> {
   const timestamp = forceRefresh ? Date.now() : undefined;
   const fetchedConfigurations = await fetchConfigurations(timestamp);
-  console.log({fetchedConfigurations});
+  // console.log({fetchedConfigurations});
   return fetchedConfigurations ? [...configurationsObj, ...fetchedConfigurations] : configurationsObj;
 }
 

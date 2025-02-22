@@ -4,8 +4,6 @@ import { InputItem, OutputItem } from '@/types';
 
 export async function POST(request: Request) {
   const { type, client, model, version } = await request.json();
-
-  console.log('flag0', {type, client, model, version});
   
   try {
     if (type === 'replicte') {
@@ -32,10 +30,9 @@ export async function POST(request: Request) {
       
       const fixedClient = fixClient(client);
       let app = await Client.connect(String(fixedClient));
-
-      console.log('flag2, app', {app});
       
       const app_info = await app.view_api();
+      console.log({app_info});
       
       const formattedEndpoints = await convertToIO({app_info, app, client: fixedClient});
 
@@ -186,9 +183,9 @@ function formatEndpointsFromApiInfo(apiInfo: any): FormattedEndpoint[] {
 /**
  * Constructs the Gradio Space API URL from client string
  */
-function constructApiUrl(client: string): string {
+function constructAppRoot(client: string): string {
   const spaceName = client.toLowerCase().replace('/', '-');
-  return `https://${spaceName}.hf.space/gradio_api/info`;
+  return `https://${spaceName}.hf.space`;
 }
 
 function formatEndpointsFromConfig(appConfig: AppConfig): FormattedEndpoint[] {
@@ -281,21 +278,36 @@ function formatEndpointsFromConfig(appConfig: AppConfig): FormattedEndpoint[] {
  */
 async function convertToIO({ app_info, app, client }: { app_info: any; app?: any, client: string }): Promise<FormattedEndpoint[] | null> {
   // Try /gradio_api/info first
-  let apiUrl = app?.config.root ? `${app.config.root}/gradio_api/info` : constructApiUrl(client);
-  if (apiUrl) {
+  const appRoot = app?.config?.root || constructAppRoot(client);
+  const apiUrlGradioAPI = `${appRoot}/gradio_api/info`;
+  const apiUrlInfo = `${appRoot}/info`;
+
+  console.log('flag3', {appRoot});
+  if (appRoot) {
     try {
-      console.log(`Fetching ${app.root}/gradio_api/info`);
-      const response = await fetch(`${app.root}/gradio_api/info`);
+      console.log(`Fetching ${apiUrlGradioAPI}`);
+      const response = await fetch(apiUrlGradioAPI);
       if (response.ok) {
         const apiInfo = await response.json();
+        console.log('flag4', {apiInfo});
         if (apiInfo.named_endpoints && Object.keys(apiInfo.named_endpoints).length > 0) {
           console.log("Using /gradio_api/info data");
           return formatEndpointsFromApiInfo(apiInfo);
         }
       }
       console.log("/gradio_api/info fetch succeeded but returned no useful data");
-    } catch (error) {
-      console.error("Failed to fetch /gradio_api/info:", error);
+    } catch (error: any) {
+      console.error("Failed to fetch /gradio_api/info:", error.message);
+      console.log(`Fetching ${apiUrlInfo}`);
+      const response = await fetch(apiUrlInfo);
+      if (response.ok) {
+        const apiInfo = await response.json();
+        console.log('flag5', {apiInfo});
+        if (apiInfo.named_endpoints && Object.keys(apiInfo.named_endpoints).length > 0) {
+          console.log("Using /info data");
+          return formatEndpointsFromApiInfo(apiInfo);
+        }
+      }
     }
   }
 

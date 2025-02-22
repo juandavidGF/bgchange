@@ -34,10 +34,16 @@ export type InputItem = {
   description?: string;
   value?: any;
   required?: boolean;
+  // Properties for number and slider inputs
+  min?: number;
+  max?: number;
+  step?: number;
+  // Properties for dropdown and checkboxgroup inputs
+  options?: string[];
 };
 
 export interface OutputItem {
-  component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video' | 'audio';
+  component: 'image' | 'prompt' | 'checkbox' | 'number' | 'video' | 'audio' | 'textbox';
   key: string;
   placeholder?: string;
   type: 'string' | 'number' | 'boolean' | 'array';

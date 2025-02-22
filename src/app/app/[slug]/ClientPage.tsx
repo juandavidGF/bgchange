@@ -14,6 +14,9 @@ import { SelectMenu } from "@/app/selectmenu";
 import { Configuration, ImageAreaProps, InputItem, OutputItem } from "@/types";
 import { sleep } from "@/utils";
 import { Prompt } from "@/components/prompt";
+import { Slider, Checkbox, CheckboxGroup, NumberInput, NumberOutput } from "@/components/numericInput";
+import { AudioOutput } from "@/components/audioOutput";
+import { TextOutput } from "@/components/textOutput";
 import { useRouter } from 'next/navigation';
 import { notFound } from 'next/navigation';
 import { getConfigurations } from '@/common/configuration';
@@ -740,8 +743,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
             {config?.inputs.map((item: InputItem, index: number) => {
               if (('show' in item) && item['show']) {
                 const { component } = item;
-                console.log({item}, {component});
-                switch (component) {
+                switch (component.toLowerCase()) {
                   case 'image':
                     const Img = !files[contImg] ? 
                       (<ImageDropzone
@@ -772,6 +774,73 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
                         placeholderTextArea={item.value as string}
                         setPrompt={setPrompt}
                       />)
+                  case 'textbox':
+                    return(
+                      <Prompt
+                        key={index}
+                        label={item.label as string}
+                        placeholder={item.placeholder as string} 
+                        description={item.description as string}
+                        placeholderTextArea={item.value as string}
+                        setPrompt={setPrompt}
+                      />)
+                  case 'number':
+                    return (
+                      <NumberInput
+                        key={index}
+                        label={item.label as string || 'Value'}
+                        description={item.description as string}
+                        min={Number(item.min) || 0}
+                        max={Number(item.max) || 100}
+                        step={Number(item.step) || 1}
+                        defaultValue={Number(item.value) || 50}
+                        onChange={(value) => setPrompt(value.toString())}
+                      />
+                    )
+                  case 'slider':
+                    return (
+                      <Slider
+                        key={index}
+                        label={item.label as string}
+                        description={item.description as string}
+                        min={item.min as number || 0}
+                        max={item.max as number || 100}
+                        step={item.step as number || 1}
+                        defaultValue={item.value as number || 50}
+                        onChange={(value) => setPrompt(value.toString())}
+                      />
+                    )
+                  case 'checkbox':
+                    return (
+                      <Checkbox
+                        key={index}
+                        label={item.label as string}
+                        description={item.description as string}
+                        defaultChecked={item.value as boolean}
+                        onChange={(checked) => setPrompt(checked.toString())}
+                      />
+                    )
+                  case 'checkboxgroup':
+                    return (
+                      <CheckboxGroup
+                        key={index}
+                        label={item.label as string}
+                        description={item.description as string}
+                        options={item.options as string[] || []}
+                        defaultSelected={(item.value as string[]) || []}
+                        onChange={(selected) => setPrompt(JSON.stringify(selected))}
+                      />
+                    )
+                  case 'dropdown':
+                    return (
+                      <SelectMenu
+                        key={index}
+                        label={item.label as string}
+                        options={item.options as string[] || []}
+                        selected={(item.value as string) || (item.options as string[])?.[0] || ''}
+                        onChange={(value) => setPrompt(value)}
+                      />
+                    )
                   default:
                     return <div>no supported {item.key} type {component}</div>;
                 }
@@ -884,25 +953,56 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
                     );
                   }
                 }
-                if(item.component === 'image') { 
-                  return <ImageOutput
-                    title={item.placeholder as string}
-                    downloadOutputImage={downloadOutputImage}
-                    outputImage={Array.isArray(outputImage) ? outputImage[0] : outputImage} // Ensure outputImage is a string or null
-                    icon={SparklesIcon}
-                    loading={loading}
-                  />
-                } else if (item.component === 'video') {
-                  return <video
-                    src={outputVideo as string}
-                    width="520"
-                    height="340"
-                    controls
-                    autoPlay
-                    className="h-full w-full object-cover"
-                  >
-                    Your browser does not support the video tag.
-                  </video>
+
+                switch (item.component.toLowerCase()) {
+                  case 'image':
+                    return <ImageOutput
+                      key={index}
+                      title={item.placeholder as string}
+                      downloadOutputImage={downloadOutputImage}
+                      outputImage={Array.isArray(outputImage) ? outputImage[0] : outputImage} // Ensure outputImage is a string or null
+                      icon={SparklesIcon}
+                      loading={loading}
+                    />
+                  case 'video':
+                    return <video
+                      key={index}
+                      src={outputVideo as string}
+                      width="520"
+                      height="340"
+                      controls
+                      autoPlay
+                      className="h-full w-full object-cover"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  case 'audio':
+                    return (
+                      <AudioOutput
+                        key={index}
+                        title={item.title || 'Audio Output'}
+                        audioUrl={item.value as string || null}
+                      />
+                    )
+                  case 'number':
+                    return (
+                      <NumberOutput
+                        key={index}
+                        title={item.title || 'Numeric Output'}
+                        value={item.value || null}
+                      />
+                    )
+                  case 'textbox':
+                    return (
+                      <TextOutput
+                        key={index}
+                        title={item.title}
+                        placeholder={item.placeholder}
+                        value={item.value}
+                      />
+                    )
+                  default:
+                    return <div>no supported {item.component} type</div>;
                 }
               }
             })}
