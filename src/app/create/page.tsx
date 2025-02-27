@@ -447,10 +447,10 @@ export default function CreateApp() {
             key,
             type: typedValue.type,
             value: (typedValue.default !== undefined ? typedValue.default : null) as string | number | boolean | undefined,
-            show: required?.includes(key),
+            show: false,
             placeholder: typedValue.description || '',
             label: typedValue.title || '',
-            required: required?.includes(key),
+            required: false,
           };
         });
       
