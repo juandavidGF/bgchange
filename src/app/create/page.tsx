@@ -477,7 +477,7 @@ export default function CreateApp() {
           return outputItem;
         };
 
-        outputItems = Object.entries({outputs}).map(([key, value]) => processOutput(key, value as PropertyValue));
+        outputItems = Object.entries(outputs).map(([key, value]) => processOutput(key, value as PropertyValue));
       }
         
 
