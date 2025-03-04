@@ -146,7 +146,7 @@ const configurationsObj: Configurations = [
     ],
   },
   {
-    name: 'consistent-character',
+    name: 'consistent-character-gradio',
     type: 'gradio',
     client: 'Kwai-Kolors/Kolors-Character-With-Flux',
     path: '/generate',
@@ -179,7 +179,7 @@ const configurationsObj: Configurations = [
     ]
   },
   {
-    name: 'consistent-character',
+    name: 'consistent-character-replicate',
     type: 'replicate',
     model: 'fofr/consistent-character',
     version: '9c77a3c2f884193fcee4d89645f02a0b9def9434f9e03cb98460456b831c8772',

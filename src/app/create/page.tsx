@@ -5,6 +5,7 @@ import { InputItem, OutputItem, Configuration } from "@/types";
 import { PlusCircle, X, ChevronDown, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { getConfigurations } from '@/common/configuration';
+import AppPreview from '@/components/AppPreview';
 
 interface GradioEndpoint {
   key: string;
@@ -51,7 +52,8 @@ export default function CreateApp() {
   const [rawData, setRawData] = useState('');
   const [modelUrl, setModelUrl] = useState('');
   const [modelData, setModelData] = useState<any>(null);
-  const [editMode, setEditMode] = useState<'form' | 'json'>('form');
+  const [editMode, setEditMode] = useState<'form' | 'json' | 'preview'>('form');
+const [implementationStep, setImplementationStep] = useState<number>(1);
   const [jsonConfig, setJsonConfig] = useState('');
   const [appName, setAppName] = useState('');
   const [inputs, setInputs] = useState<InputItem[]>([]);
@@ -190,7 +192,7 @@ export default function CreateApp() {
     const newApp: Configuration = {
       name: appName,
       type: appType,
-      inputs: filteredInputs,
+      inputs,
       outputs,
     };
 
@@ -717,6 +719,16 @@ export default function CreateApp() {
               >
                 JSON
               </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setEditMode('preview');
+                  setImplementationStep(2);
+                }} 
+                className={`px-4 py-2 rounded-md ${editMode === 'preview' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'}`}
+              >
+                Preview
+              </button>
             </div>
             <button 
               type="submit" 
@@ -726,7 +738,32 @@ export default function CreateApp() {
             </button>
           </div>
 
-          {editMode === 'form' ? (
+          {editMode === 'preview' ? (
+            <AppPreview 
+              config={{
+                name: appName,
+                type: appType,
+                ...(appType === 'gradio' ? 
+                  { client, path, endpoint, endpoints } : 
+                  { model: `${model.split('/')[0]}/${model.split('/')[1]}`, version }
+                ),
+                inputs,
+                outputs
+              }}
+              onEndpointChange={(newEndpoint) => {
+                setEndpoint(newEndpoint);
+                if (gradioEndpoints) {
+                  const newGradioEndpoint = gradioEndpoints.find((item) => item.key === newEndpoint);
+                  if (newGradioEndpoint) {
+                    const { inputs: newInputs, outputs: newOutputs } = newGradioEndpoint;
+                    setInputs(newInputs || []);
+                    setOutputs(newOutputs || []);
+                  }
+                }
+              }}
+              onAppNameChange={setAppName}
+            />
+          ) : editMode === 'form' ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -778,6 +815,7 @@ export default function CreateApp() {
                     <label className="block text-sm font-medium text-gray-300 mb-1">Endpoint:</label>
                     {endpoints ? (
                       <select
+                      value={endpoint}
                       onChange={handleEndpointChange}
                       className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                       >
