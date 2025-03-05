@@ -571,7 +571,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
             console.log(`${component} ${imgI} filled`);
           } else {
             alert(`must to fill the ${component}`)
-            return;
+            // return;
           }
         }
       }
@@ -649,6 +649,8 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
       let status: Status | null = null;
 
 
+      console.log('clientPagw', {params});
+
       const genA = await fetch(`/api/app/${slug}`, {
         method: "POST",
         headers: {
@@ -657,40 +659,62 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
         body: JSON.stringify(params),
       });
 
-      console.log({genA});
-  
-      const {id} = await genA.json();
-  
       if (!genA.ok) {
         setError(genA.statusText);
         setLoading(false);
         return;
       }
       
-      do {
-        await sleep(1_000);
-        response = await fetch(`/api/app/${slug}/get`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ id }),
-        });
-        result = await response.json();
-        
-        if (result.error) {
-          setError(result.error);
-          setLoading(false);
-          return;
-        }
+      const responseData = await genA.json();
+
+      console.log({responseData});
   
-        status = result.state.status;
-  
-        console.log({status});
-      } while (status !== 'succeeded' && status !== 'failed');
+      const id = responseData.id;
       
-      if (status === 'failed') throw Error("status failed");
+
+      if (id) {
+        do {
+          await sleep(1_000);
+          response = await fetch(`/api/app/${slug}/get`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ id }),
+          });
+          result = await response.json();
+          
+          if (result.error) {
+            setError(result.error);
+            setLoading(false);
+            return;
+          }
+    
+          status = result.state.status;
+    
+          console.log({status});
+        } while (status !== 'succeeded' && status !== 'failed');
+        if (status === 'failed') throw Error("status failed");
+      } else {
+        // Handle Gradio format if present
+        if (Array.isArray(responseData) && responseData[0]?.url) {
+          // Extract just the URLs from the Gradio response objects
+          const urls = responseData.map(item => item.url);
+          result = {
+            status: 'succeeded',
+            output: urls
+          };
+          console.log('array and url',{result});
+        } else {
+          result = {
+            status: 'succeeded',
+            output: responseData.output
+          };
+        }
+      }
+      
       prediction = result;
+      console.log('Final prediction:', prediction);
     }
     
     
@@ -698,11 +722,19 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
       console.log({outputs: config.outputs});
       config.outputs.forEach((item: OutputItem) => {
         const {component} = item; // Change 'type' to 'component'
+        console.log({prediction});
+        const out = prediction?.state?.output || prediction.output;
+        console.log({out});
         if (component === 'image') { // Update the condition to check 'component'
-          if (Array.isArray(prediction.state.output)) { // Check if output is an array
-            setOutputImage(prediction.state.output); // Set the entire array
-          } else if (typeof prediction.state.output === 'string') {
-            setOutputImage([prediction.state.output]); // Wrap single string in an array
+          if (Array.isArray(out)) { // Check if output is an array)
+            const urls = out.map((item) => item.url);
+            if (urls.length > 0) {
+              setOutputImage(urls); // Set the entire array
+            } else {
+              setOutputImage(out);
+            }
+          } else if (typeof out === 'string') {
+            setOutputImage([out]); // Wrap single string in an array
           } else {
             console.error('Invalid output format');
             throw Error('Invalid output format');
@@ -710,7 +742,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
         } else if (component === 'video') {
           if (config?.outputs && config.outputs.length > 0) {
             const key = config.outputs[0].key;
-            setOutputVideo(prediction.state.output[key]);
+            setOutputVideo(out[key]);
           } else {
             console.error('Invalid key');
             throw Error('Invalid key');
@@ -725,7 +757,12 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
       console.log({videox})
       setOutputVideo(videox);
     } else if(model.output.image) {
-      setOutputImage(prediction.output[0]);
+      // Handle Gradio format if present
+      if (Array.isArray(prediction.output) && prediction.output[0]?.url) {
+        setOutputImage([prediction.output[0].url]);
+      } else {
+        setOutputImage(prediction.output[0]);
+      }
     }
 
     setLoading(false);

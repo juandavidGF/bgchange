@@ -198,8 +198,8 @@ export async function POST(
         let output: any;
         try {
           const app = await Client.connect(client as string);
-          console.log('flag 1 - gradio client', {app})
-          output = await app.predict(path as string, params);
+          console.log('flag 1 - gradio client', !!app);
+          output = await app.predict(config.endpoint as string, params);
           console.log('flag 1 - gradio predict')
         } catch (error: any) {
           throw Error('gradio predict error', error.message);
@@ -215,10 +215,10 @@ export async function POST(
           );
         }
         
-        return NextResponse.json(
-          output.data,
-          { status: 201 }
-        );
+        return NextResponse.json({
+          status: 'succeeded',
+          output: output.data
+        }, { status: 201 });
       }
     } else if (slug !== 'freshink' 
         && slug !== 'createVideo'
