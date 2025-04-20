@@ -43,58 +43,7 @@ export async function POST(
 
     console.log('Found configuration:', config.name);
 
-    const evfSamConfig = configurations.find(conf => conf.name === 'EVF-SAM');
-
-    if (slug === 'EVF-SAM' && evfSamConfig) {
-      const conf = configurations.find(conf => conf.name === 'EVF-SAM');
-      console.log('flag1');
-      const config = configurations.find(conf => conf.name === 'EVF-SAM');
-      const formData = await request.formData();
-      console.log('flag1.1');
-
-      if (!conf) {
-        throw new Error("Configuration not found for the specified slug.");
-      }
-      const image = formData.get(conf.inputs[0].key) as File | null;
-      const prompt = formData.get(conf.inputs[1].key) as String | null;
-
-      console.log('flag1.2', {image, prompt});
-
-      if (!image || !prompt) {
-        return NextResponse.json(
-          { error: "Both image and prompt are required." }, 
-          { status: 400 }
-        );
-      }
-
-      if (!config) {
-        throw new Error("Configuration not found for the specified slug.");
-      }
-      
-      const imageBuffer = await image.arrayBuffer();
-      console.log('flag2', config.client, config.path);
-
-      const app = await Client.connect(config.client as string);
-      console.log('flag2.1', config.client, config.path);
-      const output = await app.predict(config.path as string, {
-        image_np: handle_file(image),
-        prompt: prompt
-      });
-      
-      console.log('gradio EV', output.data);
-      if (!output) {
-        console.log('Something went wrong');
-        return NextResponse.json(
-          { error: 'Something went wrong' },
-          { status: 500 }
-        );
-      }
-      
-      return NextResponse.json(
-        output.data,
-        { status: 201 }
-      );
-    } else if (config) {
+    if (config) {
       const req = await request.json();
       console.log('elseif conf');
 
@@ -187,26 +136,88 @@ export async function POST(
               params[item.key] = await handle_file(image);
             }
             indImg++;
+          } else if (item.component === 'audio') {
+            const audio = req.audio;
+            if (typeof audio === 'string' && audio.startsWith('data:audio/')) {
+              params[item.key] = await handle_file(await convertBase64ToBlob(audio));
+            } else if (audio instanceof Blob) {
+              params[item.key] = await handle_file(audio);
+            }
           } else {
             params[item.key] = req[item.key] !== undefined ? req[item.key] : item.value;
           }
         }
         const client = config.client;
         const path = config.path;
-        console.log(JSON.stringify(config, null, 2));
-        console.log({client, path, params})
+        const endpoint = config.endpoint as string;
+        console.log('Gradio request params:', {
+          client,
+          endpoint,
+          path,
+          params: {
+            ...params,
+            // Hide large binary data from logs
+            source_image: params.source_image ? '[Blob data]' : null,
+            driven_audio: params.driven_audio ? '[Audio data]' : null 
+          }
+        })
         let output: any;
         try {
-          const app = await Client.connect(client as string);
-          console.log('flag 1 - gradio client', !!app);
-          output = await app.predict(config.endpoint as string, params);
-          console.log('flag 1 - gradio predict')
+          // 1. Verify connection
+          console.log('Connecting to Gradio client:', client);
+          const app = await Client.connect(client as string).catch(err => {
+            console.error('Gradio connection failed:', err.message);
+            throw new Error(`Failed to connect to Gradio client ${client}: ${err.message}`);
+          });
+          console.log('Gradio client connected:', !!app);
+
+          // Make prediction with detailed error context
+          console.log('Running prediction with params:', {
+            endpoint: endpoint, // Log the endpoint being used
+            params: Object.keys(params),
+            // Log types/sizes for debugging potential data issues
+            audio_type: params.driven_audio?.type,
+            audio_size: params.driven_audio?.size,
+            image_type: params.source_image?.type,
+            image_size: params.source_image?.size
+          });
+
+          console.log('flag before prediction');
+          try {
+            output = await app.predict(endpoint, params);
+            console.log('flag after prediction');
+            console.log('Prediction completed:', {
+              output_data_type: typeof output?.data,
+              output_status: output?.status // Check if output exists
+            });
+          } catch (predictError: any) {
+            console.error('Gradio prediction failed:', {
+              endpoint: endpoint,
+              params: Object.keys(params), // Show keys, not full data
+              error_message: predictError.message,
+              error_stack: predictError.stack,
+              gradio_app_info: app.config // Log Gradio app config for context
+            });
+            // Re-throw the original prediction error to be caught by the outer catch
+            throw predictError;
+          }
+
         } catch (error: any) {
-          throw Error('gradio predict error', error.message);
+          // This catches connection, endpoint verification, and prediction errors
+          console.error('Full Gradio operation error:', {
+            client: client,
+            endpoint: config.endpoint, // Log intended endpoint
+            error_message: error.message,
+            error_stack: error.stack,
+            // Avoid logging potentially large params again if it was a prediction error
+            ...(error instanceof Error && !error.message.includes('prediction failed') && { params: Object.keys(params) })
+          });
+          // Throw a consistent error format
+          throw new Error(`Gradio operation failed for ${client}: ${error.message}`);
         }
-        
-        
-        console.log({output});
+
+
+        console.log('Final Gradio output object:', {output}); // Log the final output object structure
         if (!output) {
           console.log('Something went wrong');
           return NextResponse.json(
@@ -306,8 +317,9 @@ export async function POST(
       { status: 201 }
     );
   } catch (error: any) {
-    console.log({error});
-    console.error("api/app/[] general error" + JSON.stringify(error.message, null, 2));
+    // console.error("api/app/[] general error" + JSON.stringify(error.message, null, 2));
+    console.error("api/app/[] general error" + error.message);
+    console.error("api/app/[] general error" + error.stack);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

@@ -48,6 +48,39 @@ type UploadedVideoProps = {
   };
 };
 
+type UploadedAudioProps = {
+  audio: File;
+  audioUrl: string | null;
+  removeAudio(): void;
+  file: {
+    name: string;
+    size: string;
+  };
+};
+
+function UploadedAudio({ audio, audioUrl, removeAudio, file }: UploadedAudioProps) {
+  return (
+    <div className="p-4 bg-gray-800 rounded-md mb-4">
+      <p className="text-sm text-gray-300">
+        Audio ready: {file.name} ({file.size})
+      </p>
+      {audioUrl && (
+        <audio 
+          src={audioUrl} 
+          controls
+          className="mt-2 w-full"
+        />
+      )}
+      <button
+        onClick={removeAudio}
+        className="mt-2 text-red-400 hover:text-red-300 text-sm"
+      >
+        Remove Audio
+      </button>
+    </div>
+  );
+}
+
 type ImageOutputProps = ImageAreaProps & {
   loading: boolean;
   outputImage: string | null;
@@ -284,6 +317,120 @@ function ImageDropzone(
  * Display the image dropzone
  * @param {ImageAreaProps} props The component props
  */
+function AudioDropzone(
+  props: ImageAreaProps & {
+    onAudioDrop(acceptedFiles: File[], rejectedFiles: FileRejection[]): void;
+    onRecordAudio(blob: Blob): void;
+  }
+) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
+  const [permissionStatus, setPermissionStatus] = useState<'prompt'|'granted'|'denied'>('prompt');
+  const [permissionError, setPermissionError] = useState<string|null>(null);
+
+  const checkPermission = async () => {
+    try {
+      const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      setPermissionStatus(permissionResult.state as 'granted'|'denied');
+      permissionResult.onchange = () => {
+        setPermissionStatus(permissionResult.state as 'granted'|'denied');
+      };
+    } catch (err) {
+      console.warn('Permission API not supported, falling back to direct request');
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      if (permissionStatus === 'denied') {
+        setPermissionError('Microphone access was previously denied. Please update permissions in your browser settings.');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        .catch(err => {
+          if (err.name === 'NotAllowedError') {
+            setPermissionStatus('denied');
+            setPermissionError('Microphone access is required for recording. Please allow microphone access and try again.');
+          }
+          throw err;
+        });
+
+      setPermissionStatus('granted');
+      setPermissionError(null);
+      const recorder = new MediaRecorder(stream);
+      setMediaRecorder(recorder);
+      
+      recorder.ondataavailable = (e) => {
+        setAudioChunks(prev => [...prev, e.data]);
+      };
+      
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        props.onRecordAudio(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      recorder.start();
+      setIsRecording(true);
+      setAudioChunks([]);
+    } catch (err) {
+      console.error('Error starting recording:', err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Dropzone
+        onDrop={props.onAudioDrop}
+        accept={{
+          "audio/*": [".mp3", ".wav"],
+        }}
+        maxSize={100 * 1024 * 1024} // 100MB
+        multiple={false}
+      >
+        {({ getRootProps, getInputProps }) => (
+          <>
+            <input {...getInputProps()} />
+            <button
+              {...getRootProps()}
+              type="button"
+              className="relative block minh-[206px] w-full rounded-lg border-2 border-dashed border-gray-300 p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            >
+              <props.icon className="mx-auto h-12 w-12 text-gray-400" />
+              <span className="mt-2 block text-sm font-semibold text-gray-300">
+                {props.title}
+              </span>
+            </button>
+          </>
+        )}
+      </Dropzone>
+      
+      <div className="flex justify-center gap-4">
+        <button
+          type="button"
+          onClick={isRecording ? stopRecording : startRecording}
+          className={`px-4 py-2 rounded-md ${
+            isRecording 
+              ? 'bg-red-500 hover:bg-red-600' 
+              : 'bg-green-500 hover:bg-green-600'
+          } text-white`}
+        >
+          {isRecording ? 'Stop Recording' : 'Record Audio'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function VideoDropzone(
   props: ImageAreaProps & {
     onVideoDrop(acceptedFiles: File[], rejectedFiles: FileRejection[]): void;
@@ -392,6 +539,23 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
   const [error, setError] = useState<string | null>("");
   const [files, setFiles] = useState<File[]>([]);
   const [video, setVideo] = useState<File | null>(null);
+  const [audio, setAudio] = useState<File | null>(null);
+  const [base64Audio, setBase64Audio] = useState<string | null>(null);
+
+  const handleRecordedAudio = (blob: Blob) => {
+    const audioFile = new File([blob], 'recording.wav', { type: 'audio/wav' });
+    setAudio(audioFile);
+    console.log('Audio file set:', audioFile.name, audioFile.size);
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onload = () => {
+      const result = reader.result as string;
+      setBase64Audio(result);
+      console.log('Recorded audio converted to base64:', result.substring(0, 50) + '...');
+      console.log('Audio state updated - audio:', audioFile, 'base64:', !!result);
+    };
+  };
 
   const fetchConfig = useCallback(async () => {
     const configurations = await getConfigurations();
@@ -458,6 +622,30 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
 
     // Convert to base64
     convertImageToBase64(acceptedFiles[0], id);
+  }
+
+  function onAudioDrop(
+    acceptedFiles: File[],
+    rejectedFiles: FileRejection[]
+  ): void {
+    if (rejectedFiles.length > 0) {
+      console.info(rejectedFiles);
+      setError(`Please upload an MP3 or WAV file less than 100MB.`);
+      return;
+    }
+
+    setAudio(null);
+    console.info(acceptedFiles);
+    setError("");
+    setAudio(acceptedFiles[0]);
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.readAsDataURL(acceptedFiles[0]);
+    reader.onload = () => {
+      const binaryStr = reader.result as string;
+      setBase64Audio(binaryStr);
+    };
   }
 
   function onVideoDrop(
@@ -554,7 +742,12 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
    * @returns {Promise<void>}
    */
   async function submitImage({slug}: {slug: Slug}): Promise<void> {
-    const params: any = { prompt, image: base64Images, video: base64Video };
+    const params: any = { 
+      prompt, 
+      image: base64Images, 
+      video: base64Video,
+      audio: base64Audio 
+    };
     
     if (config?.inputs) {
       let imgI = 0;
@@ -782,7 +975,7 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
                 const { component } = item;
                 switch (component.toLowerCase()) {
                   case 'image':
-                    const Img = !files[contImg] ? 
+                    const Img = !files[contImg] ?
                       (<ImageDropzone
                         key={index}
                         id={contImg}
@@ -797,8 +990,6 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
                         removeImage={() => removeImage(contImg)}
                         file={{ name: files[contImg].name, size: fileSize(files[contImg].size) }}
                       />)
-                      
-                    
                     contImg += 1;
                     return Img;
                   case 'prompt':
@@ -876,6 +1067,29 @@ export default function ClientPage({ slug, initialConfigurations }: { slug: Slug
                         options={item.options as string[] || []}
                         selected={(item.value as string) || (item.options as string[])?.[0] || ''}
                         onChange={(value) => setPrompt(value)}
+                      />
+                    )
+                  case 'audio':
+                    return !audio ? (
+                      <AudioDropzone
+                        key={index}
+                        title={`Drag 'n drop your audio here or click to upload`}
+                        onAudioDrop={onAudioDrop}
+                        onRecordAudio={handleRecordedAudio}
+                        icon={VideoCameraIcon}
+                      />
+                    ) : (
+                      <UploadedAudio
+                        audio={audio}
+                        audioUrl={base64Audio}
+                        removeAudio={() => {
+                          setAudio(null);
+                          setBase64Audio(null);
+                        }}
+                        file={{
+                          name: audio.name,
+                          size: fileSize(audio.size)
+                        }}
                       />
                     )
                   default:

@@ -2,41 +2,6 @@ import { Configurations } from "@/types";
 
 const configurationsObj: Configurations = [
   {
-    name: 'tryon',
-    type: 'gradio',
-    client: "yisol/IDM-VTON",
-    path: "/tryon",
-    inputs: [
-      { type: 'image', placeholder: 'Enter your name', key: 'garm_img', gradioName: 'garm_img', show: true },
-      { type: 'image', placeholder: 'Upload your profile picture', key: 'Human', show: true },
-      { type: 'prompt', label: 'Description of the garment', key: 'garment_des', value: 'Hello!!', show: true },
-      { type: 'checkbox', placeholder: 'Is checked?', key: 'is_checked', value: true, show: false },
-      { type: 'checkbox', placeholder: 'Is checked crop?', key: 'is_checked_crop', value: false, show: false },
-      { type: 'number', placeholder: 'Denoise Steps', key: 'denoise_steps', value: 30, show: false },
-      { type: 'number', placeholder: 'Seed', key: 'seed', value: 42, show: false }
-    ],
-    outputs: [
-      { type: 'text', placeholder: 'Your name', key: 'outputName', show: false },
-      { type: 'image', placeholder: 'Your profile picture', key: 'outputProfilePicture', show: true },
-    ],
-  },
-  {
-    name: 'sam2',
-    type: 'replicate',
-    model: 'meta/sam-2',
-    version: 'fe97b453a6455861e3bac769b441ca1f1086110da7466dbb65cf1eecfd60dc83',
-    inputs: [
-      { type: 'image', key: 'image', placeholder: 'Upload your image', show: true },
-      { type: 'checkbox', key: 'use_m2m', value: true },
-      { type: 'number', key: 'points_per_side', value: 32 },
-      { type: 'number', key: 'pred_iou_thresh', value: 0.88 },
-      { type: 'number', key: 'stability_score_thresh', value: 0.95 },
-    ],
-    outputs: [
-      { type: 'image', placeholder: 'Segmented Image, combined mask', key:'combined_mask', show: true },
-    ],
-  },
-  {
     name: 'pyramid-flow',
     type: 'gradio',
     client: 'Pyramid-Flow/pyramid-flow',
@@ -196,6 +161,77 @@ const configurationsObj: Configurations = [
     outputs: [
       { component: 'image', type: 'array', typeItem: 'string', format: 'uri', placeholder: 'characther', key:'output', show: true },
     ],
+  },{
+    "name": "HiDream",
+    "type": "gradio",
+    "client": "HiDream-ai/HiDream-I1-Dev",
+    "path": "/predict",
+    "endpoint": "/generate_with_status",
+    "inputs": [
+      {
+        "type": "string",
+        "key": "prompt",
+        "show": true,
+        "placeholder": "",
+        "gradioName": "",
+        "label": "Prompt",
+        "description": "",
+        "component": "Textbox",
+        "value": null
+      },
+      {
+        "type": "string",
+        "key": "aspect_ratio",
+        "show": false,
+        "placeholder": "",
+        "gradioName": "",
+        "label": "Aspect Ratio",
+        "description": "",
+        "component": "Textbox",
+        "value": "4:3"
+      },
+      {
+        "type": "integer",
+        "key": "seed",
+        "show": false,
+        "placeholder": "",
+        "gradioName": "",
+        "label": "Seed (use -1 for random)",
+        "description": "",
+        "component": "number",
+        "value": 82706
+      }
+    ],
+    "outputs": [
+      {
+        "type": "string",
+        "key": "generated_image",
+        "show": true,
+        "placeholder": "",
+        "component": "image",
+      },
+      {
+        "type": "number",
+        "key": "seed_used",
+        "show": false,
+        "placeholder": "",
+        "component": "prompt",
+      },
+      {
+        "type": "string",
+        "key": "value_15",
+        "show": false,
+        "placeholder": "",
+        "component": "prompt",
+      },
+      {
+        "type": "string",
+        "key": "details",
+        "show": false,
+        "placeholder": "",
+        "component": "prompt",
+      }
+    ]
   }
 ]
 
@@ -217,7 +253,7 @@ async function fetchConfigurations(timestamp?: number) {
 async function getConfigurations(forceRefresh: boolean = false): Promise<Configurations> {
   const timestamp = forceRefresh ? Date.now() : undefined;
   const fetchedConfigurations = await fetchConfigurations(timestamp);
-  // console.log({fetchedConfigurations});
+  console.log({fetchedConfigurations});
   return fetchedConfigurations ? [...configurationsObj, ...fetchedConfigurations] : configurationsObj;
 }
 

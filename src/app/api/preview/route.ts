@@ -28,6 +28,7 @@ interface PreviewConfig {
 }
 
 export async function POST(request: Request) {
+  console.log('Preview POST request received');
   try {
     const { config, params } = await request.json();
     console.log('Preview request:', { config, params });
@@ -94,7 +95,6 @@ export async function POST(request: Request) {
         status: prediction.status
       }, { status: 201 });
     }
-
     // Handle Gradio models
     else if (config.type === 'gradio') {
       const typedConfig = config as PreviewConfig;
@@ -141,11 +141,115 @@ export async function POST(request: Request) {
 
       console.log('Gradio params:', {processedParams, typedConfig});
 
-      const app = await Client.connect(typedConfig.client!);
-      console.log('app:', {path: typedConfig.path, processedParams});
-      const result = await app.predict(typedConfig.endpoint, processedParams);
+      let app;
 
-      console.log('Gradio result:', result);
+      try {
+        app = await Client.connect(typedConfig.client!);
+        console.log('app:', {path: typedConfig.client, processedParams});
+      } catch (error:any) {
+        throw new Error(`Error connecting app to Gradio client: ${error.message}`);
+      }
+      console.log('Gradio app connected:', !!app);
+
+      let result;
+
+      // Validate parameters
+      if (!processedParams || typeof processedParams !== 'object') {
+        throw new Error('Invalid parameters for prediction');
+      }
+
+      const predictParams = {
+        endpoint: typedConfig.endpoint,
+        data: processedParams,
+      }
+      console.log('Gradio predict params:', predictParams);
+      
+      try {
+        // Get API info to validate endpoint and parameters
+        const apiInfo = await app.view_api();
+        if (!apiInfo.named_endpoints[typedConfig.endpoint]) {
+          throw new Error(`Endpoint ${typedConfig.endpoint} not found in app`);
+        }
+
+        const endpointInfo = apiInfo.named_endpoints[typedConfig.endpoint];
+        const requiredParams = endpointInfo.parameters
+          ? endpointInfo.parameters
+              .filter((p: any) => !p.parameter_has_default)
+              .map((p: any) => p.parameter_name)
+          : [];
+
+        const missingParams = requiredParams.filter(
+          (param: string) => processedParams[param] === undefined
+        );
+        
+        if (missingParams.length > 0) {
+          throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
+        }
+
+        // Log detailed parameter info before prediction
+        console.log('Final prediction parameters:', {
+          endpoint: typedConfig.endpoint,
+          params: processedParams,
+          paramTypes: Object.entries(processedParams).map(([k, v]) => ({
+            param: k,
+            type: typeof v,
+            value: v
+          }))
+        });
+
+        // Prepare final prediction parameters
+        const predictionParams = {...processedParams};
+
+        // Convert image Blobs directly to base64 strings
+        if (predictionParams.input_fg instanceof Blob) {
+          const arrayBuffer = await predictionParams.input_fg.arrayBuffer();
+          const base64String = Buffer.from(arrayBuffer).toString('base64');
+          predictionParams.input_fg = `data:image/png;base64,${base64String}`; 
+        }
+        if (predictionParams.scribble_map instanceof Blob) {
+          const arrayBuffer = await predictionParams.scribble_map.arrayBuffer();
+          const base64String = Buffer.from(arrayBuffer).toString('base64');
+          predictionParams.scribble_map = `data:image/png;base64,${base64String}`; 
+        }
+
+        // Log the final parameters being sent
+        console.log('Final prediction parameters (base64 converted):', {
+          endpoint: typedConfig.endpoint,
+          params: predictionParams,
+          paramTypes: Object.entries(predictionParams).map(([k, v]) => ({
+            param: k,
+            type: typeof v,
+            value: typeof v === 'string' && v.length > 100 ? v.substring(0, 100) + '...' : v
+          }))
+        });
+
+        try {
+          result = await app.predict(typedConfig.endpoint, predictionParams);
+        } catch (error: any) {
+          console.error('Detailed prediction error:', {
+            error: error.message,
+            stack: error.stack,
+            endpoint: typedConfig.endpoint,
+            params: processedParams,
+            paramTypes: Object.entries(processedParams).map(([k, v]) => ({
+              param: k,
+              type: typeof v,
+              value: v
+            }))
+          });
+          throw new Error(`Prediction failed for endpoint ${typedConfig.endpoint}: ${error.message}`);
+        }
+      } catch (error: any) {
+        console.error('Detailed prediction error:', {
+          error: error.message,
+          stack: error.stack,
+          endpoint: typedConfig.endpoint,
+          params: processedParams
+        });
+        throw new Error(`Prediction failed: ${error.message}`);
+      }
+
+      console.log('Gradio result:', JSON.stringify(result, null, 2));
 
       if (!result) {
         throw new Error('Gradio model returned no output');

@@ -30,14 +30,22 @@ export async function POST(request: Request) {
       
       const fixedClient = fixClient(client);
       let app = await Client.connect(String(fixedClient));
+
+      console.log({'client': fixedClient, app: !!app});
       
       const app_info = await app.view_api();
-      console.log({app_info});
+      console.log({view_api: app_info});
+      console.log(JSON.stringify(app_info, null, 2));
       
-      const formattedEndpoints = await convertToIO({app_info, app, client: fixedClient});
+      const convertResult = await convertToIO({app_info, app, client: fixedClient});
+      if (!convertResult) {
+        throw new Error('Failed to convert to IO');
+      }
+      const { formattedEndpoints, api_info } = convertResult;
 
-      return NextResponse.json({ formattedEndpoints });
-    } else if (type === 'fal') {
+      return NextResponse.json({ formattedEndpoints, api_info, view_api: !!app_info }, { status: 200 });
+    } else if (type === 'huggingface') { } 
+    else if (type === 'fal') {
       const response = await fetch(`https://api.fal.ai/v1/models/${model}/versions/${version}`, {
         headers: {
           'Authorization': `Token ${
@@ -66,19 +74,25 @@ export async function POST(request: Request) {
 }
 
 function fixClient(inputClient: string): string {
-  try {
-    const url = new URL(inputClient);
-    if (url.hostname === "huggingface.co") {
-      const parts = url.pathname.split('/').filter(Boolean);
-      if (parts[0] === "spaces" && parts.length > 1) {
-        return parts.slice(1).join('/');
+  // First check if it looks like a URL
+  if (inputClient.includes('://') || inputClient.startsWith('http')) {
+    try {
+      const url = new URL(inputClient);
+      if (url.hostname === "huggingface.co") {
+        const parts = url.pathname.split('/').filter(Boolean);
+        // Handle both direct model paths and spaces paths
+        if (parts[0] === "spaces" && parts.length > 1) {
+          return parts.slice(1).join('/');
+        } else if (parts.length >= 2) {
+          return parts.join('/');
+        }
       }
+    } catch (e) {
+      console.debug('Input is not a valid URL, proceeding as plain client name');
     }
-  } catch (e: any) {
-    // No es una URL válida, se procede al siguiente chequeo
-    console.error('Error parsing URL:', e.message);
   }
-  // Si viene con un slash inicial, lo elimina
+  
+  // Clean up non-URL inputs
   return inputClient.startsWith('/') ? inputClient.slice(1) : inputClient;
 }
 
@@ -160,7 +174,7 @@ function formatEndpointsFromApiInfo(apiInfo: any): FormattedEndpoint[] {
       type: mapType(item.type) as InputItem['type'],
       label: item.label || item.parameter_name,
       value: item.parameter_default,
-      description: item.type.description || item.python_type.description || undefined,
+      description: item.type?.description || item.python_type?.description || undefined,
       show: true,
       required: !item.parameter_has_default,
     }));
@@ -171,7 +185,7 @@ function formatEndpointsFromApiInfo(apiInfo: any): FormattedEndpoint[] {
       type: mapType(item.type) as OutputItem['type'],
       title: item.label || `Output ${index}`,
       show: true,
-      formatItem: item.python_type.type,
+      formatItem: item.python_type?.type,
     }));
 
     formattedEndpoints.push({ key, inputs, outputs });
@@ -276,13 +290,19 @@ function formatEndpointsFromConfig(appConfig: AppConfig): FormattedEndpoint[] {
 /**
  * Converts Gradio API info or app config into formatted endpoints with multiple fallbacks
  */
-async function convertToIO({ app_info, app, client }: { app_info: any; app?: any, client: string }): Promise<FormattedEndpoint[] | null> {
+interface ConvertToIOResponse {
+  formattedEndpoints: FormattedEndpoint[] | null;
+  api_info:{
+    api: any;
+    source: string;
+  };
+}
+async function convertToIO({ app_info, app, client }: { app_info: any; app?: any, client: string }): Promise<ConvertToIOResponse | null> {
   // Try /gradio_api/info first
   const appRoot = app?.config?.root || constructAppRoot(client);
   const apiUrlGradioAPI = `${appRoot}/gradio_api/info`;
   const apiUrlInfo = `${appRoot}/info`;
-
-  console.log('flag3', {appRoot});
+  
   if (appRoot) {
     try {
       console.log(`Fetching ${apiUrlGradioAPI}`);
@@ -292,7 +312,7 @@ async function convertToIO({ app_info, app, client }: { app_info: any; app?: any
         console.log('flag4', {apiInfo});
         if (apiInfo.named_endpoints && Object.keys(apiInfo.named_endpoints).length > 0) {
           console.log("Using /gradio_api/info data");
-          return formatEndpointsFromApiInfo(apiInfo);
+          return {formattedEndpoints: formatEndpointsFromApiInfo(apiInfo), api_info: appRoot};
         }
       }
       console.log("/gradio_api/info fetch succeeded but returned no useful data");
@@ -305,7 +325,13 @@ async function convertToIO({ app_info, app, client }: { app_info: any; app?: any
         console.log('flag5', {apiInfo});
         if (apiInfo.named_endpoints && Object.keys(apiInfo.named_endpoints).length > 0) {
           console.log("Using /info data");
-          return formatEndpointsFromApiInfo(apiInfo);
+          return {
+            formattedEndpoints: formatEndpointsFromApiInfo(apiInfo),
+            api_info: {
+              api: apiInfo, 
+              source: "appRoot"
+            }
+          };
         }
       }
     }
@@ -314,13 +340,24 @@ async function convertToIO({ app_info, app, client }: { app_info: any; app?: any
   // Fallback to app_info from view_api()
   if (app_info && app_info.named_endpoints && Object.keys(app_info.named_endpoints).length > 0) {
     console.log("Falling back to app.view_api() data");
-    return formatEndpointsFromApiInfo(app_info);
+    return {
+      formattedEndpoints: formatEndpointsFromApiInfo(app_info),
+      api_info: {
+        api: app_info, 
+        source: "app_info"
+      }
+    };
   }
 
   // Final fallback to app.config
   if (app && app.config) {
     console.log("Falling back to app.config");
-    return formatEndpointsFromConfig(app as AppConfig);
+    return {
+      formattedEndpoints: formatEndpointsFromConfig(app as AppConfig), 
+      api_info: {
+        api: app.config,
+        source: "app_config"
+      }};
   }
 
   console.log("No valid data source available");

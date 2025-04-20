@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Configuration } from '@/types';
-import { PhotoIcon, FaceSmileIcon, SparklesIcon, VideoCameraIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, FaceSmileIcon, SparklesIcon, VideoCameraIcon, MicrophoneIcon } from "@heroicons/react/24/outline";
 import { ThreeDots } from "react-loader-spinner";
 import { Prompt } from './prompt';
 import { NumberInput, Slider, Checkbox, CheckboxGroup, NumberOutput } from './numericInput';
@@ -22,8 +22,8 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
   const [inputValues, setInputValues] = useState<{ [key: string]: string | number | boolean | null }>({});
   const [outputValues, setOutputValues] = useState<{ [key: string]: string | number | boolean | null }>({});
 
-  const [files, setFiles] = useState<{ [key: string]: File }>({});
-  const [base64Images, setBase64Images] = useState<{ [key: string]: string }>({});
+  const [files, setFiles] = useState<Record<string, File>>({});
+  const [base64Images, setBase64Images] = useState<Record<string, string>>({});
 
   // Reset all states when endpoint changes
   useEffect(() => {
@@ -75,9 +75,49 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
     };
   };
 
+  const onAudioDrop = (
+    acceptedFiles: File[],
+    rejectedFiles: FileRejection[],
+    key: string
+  ): void => {
+    if (rejectedFiles.length > 0) {
+      setError(`Please upload an MP3, WAV or OGG audio file less than 10MB.`);
+      return;
+    }
+
+    setError("");
+    setFiles(prev => {
+      const newFiles = { ...prev };
+      if (acceptedFiles[0]) {
+        newFiles[key] = acceptedFiles[0];
+      } else {
+        delete newFiles[key];
+      }
+      return newFiles;
+    });
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.readAsDataURL(acceptedFiles[0]);
+    reader.onload = () => {
+      const binaryStr = reader.result as string;
+      setBase64Images(prev => {
+        const newImages = { ...prev };
+        if (binaryStr) {
+          newImages[key] = binaryStr;
+        } else {
+          delete newImages[key];
+        }
+        return newImages;
+      });
+      handleInputChange(key, binaryStr);
+    };
+  };
+
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  const handleSubmit = async () => {
+  const handleSubmitPreview = async () => {
+    console.log('App Preview Submit');
     setError(null);
     // Validate required inputs first
     let hasErrors = false;
@@ -98,12 +138,18 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
             hasErrors = true;
           }
           break;
-        case 'video':
-          if (!files[input.key]) {
-            setError(`Must upload a video at "${input.label || input.key}"`);
-            hasErrors = true;
-          }
-          break;
+                case 'video':
+                  if (!files[input.key]) {
+                    setError(`Must upload a video at "${input.label || input.key}"`);
+                    hasErrors = true;
+                  }
+                  break;
+                case 'audio':
+                  if (!files[input.key]) {
+                    setError(`Must upload an audio file at "${input.label || input.key}"`);
+                    hasErrors = true;
+                  }
+                  break;
       }
     });
 
@@ -141,6 +187,8 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
         }
       });
 
+      console.log('before app preview');
+
       const response = await fetch('/api/preview', {
         method: 'POST',
         headers: {
@@ -151,6 +199,7 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
           params
         })
       });
+      console.log('after app preview');
 
       if (!response.ok) {
         throw new Error('Failed to process request');
@@ -194,13 +243,15 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
         if (!output.show) return;
         
         if (Array.isArray(result.output)) {
-          // If output is an array, try to match with config keys or use index
-          if (output.key && typeof result.output[0] === 'object') {
-            console.log("if (output.key && typeof result.output[0] === 'object') {", output.key, result.output[0]); 
+          // If output is an array and we expect array type
+          if (output.type === 'array') {
+            // For array types, we want the whole array
+            outputs[output.key] = result.output;
+          } else if (typeof result.output[0] === 'object') {
+            // If it's an object with url, use that
             outputs[output.key] = result.output[0].url || result.output[0][output.key];
-
-            console.log('outputs[output.key]', outputs, outputs[output.key])
           } else {
+            // Otherwise just use the indexed value
             outputs[output.key] = result.output[index];
           }
         } else {
@@ -222,6 +273,15 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
     const link = document.createElement('a');
     link.href = url;
     link.download = 'output.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadOutputAudio = (url: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'output.mp3';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -376,6 +436,67 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
                       onChange={(value) => handleInputChange(input.key, value)}
                     />
                   );
+                case 'audio':
+                  return (
+                    <Dropzone
+                      key={index}
+                      onDrop={(accepted, rejected) => onAudioDrop(accepted, rejected, input.key)}
+                      accept={{ 'audio/*': ['.mp3', '.wav', '.ogg'] }}
+                      maxSize={10 * 1024 * 1024}
+                    >
+                      {({ getRootProps, getInputProps }) => (
+                        <div {...getRootProps()} className="relative block w-full rounded-lg border-2 border-dashed border-gray-300 p-6 text-center hover:border-gray-400 focus:outline-none">
+                          <input {...getInputProps()} />
+                          {files[input.key] ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-300 truncate max-w-xs">
+                                  {files[input.key].name}
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  {(files[input.key].size / (1024 * 1024)).toFixed(2)}MB
+                                </span>
+                              </div>
+                              <audio 
+                                src={URL.createObjectURL(files[input.key])} 
+                                controls
+                                className="w-full mt-2"
+                              />
+                              <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFiles(prev => {
+                                    const newFiles = {...prev};
+                                    delete newFiles[input.key];
+                                    return newFiles;
+                                  });
+                                  setBase64Images(prev => {
+                                    const newImages = {...prev};
+                                    delete newImages[input.key];
+                                    return newImages;
+                                  });
+                                }}
+                                className="text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove Audio
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <MicrophoneIcon className="mx-auto h-10 w-10 text-gray-400" />
+                              <p className="mt-2 text-sm font-medium text-gray-300">
+                                Drop audio file or click to browse
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                MP3, WAV, OGG (max 10MB)
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </Dropzone>
+                  );
                 default:
                   return (
                     <div key={index}>
@@ -395,8 +516,6 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
                 <div key={index} className="relative">
                   <div className="mb-2 text-sm font-medium text-gray-300">
                     {output.title || output.key}
-                  </div>
-                  <div className="min-h-[200px] rounded-lg bg-gray-800 p-4">
                     {loading ? (
                       <div className="flex h-full items-center justify-center">
                         <ThreeDots
@@ -409,7 +528,6 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
                       </div>
                     ) : outputValues[output.key] ? (
                       <div className="relative">
-                        {output.component}
                         {output.component === 'image' && (
                           <>
                             {console.log('Rendering image with:', {
@@ -435,6 +553,22 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
                             {String(outputValues[output.key])}
                           </div>
                         )}
+                        {output.component === 'audio' && outputValues[output.key] && (
+                          <div className="space-y-2">
+                            <audio 
+                              src={String(outputValues[output.key])} 
+                              controls
+                              className="w-full"
+                            />
+                            <button
+                              onClick={() => downloadOutputAudio(String(outputValues[output.key]))}
+                              className="flex items-center text-sm text-gray-300 hover:text-white"
+                            >
+                              <FaDownload className="mr-1 h-3 w-3" />
+                              Download Audio
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="flex h-full items-center justify-center text-gray-500">
@@ -450,7 +584,7 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
 
         <div className="flex justify-end">
           <button
-            onClick={handleSubmit}
+            onClick={handleSubmitPreview}
             disabled={loading || !config.name}
             className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium shadow-sm ${
               loading || !config.name

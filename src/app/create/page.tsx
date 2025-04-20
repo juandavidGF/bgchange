@@ -206,6 +206,7 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
     }
 
     try {
+      console.log('Submitting new app:', !!newApp);
       const response = await fetch('/api/create', {
         method: 'POST',
         headers: {
@@ -375,6 +376,9 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
 
   const handleFetchModelDetails = async (type: 'replicate' | 'gradio') => {
     try {
+      setIsLoading(true);
+      setLoadingMessage(`Fetching ${type === 'gradio' ? 'Gradio space' : 'Replicate model'} details...`);
+
       const response = await fetch('/api/create/fetch-model-details', {
         method: 'POST',
         headers: {
@@ -384,7 +388,7 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch model data');
+        throw new Error(`Error: ${response.status}`);
       }
       
       const data = await response.json();
@@ -392,9 +396,18 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
       console.log('Fetched data:', data);
 
       // Populate inputs based on the schema
-      const { formattedEndpoints }: { formattedEndpoints: GradioEndpoint[] } = data;
+      const { formattedEndpoints, view_api }: { formattedEndpoints: GradioEndpoint[], api_info: any, view_api: boolean } = data;
       
       console.log({formattedEndpoints});
+
+      if (view_api) {
+        console.log('API view is available');
+        alert('API view is available');
+      } else {
+        console.log('API view is NOT available');
+        alert('API view is NOT available');
+
+      }
 
       // I: I have the enpoints on formattedEndpoints
       // 2 I should have a select on endpoint, and be able to select the endpoint
@@ -498,6 +511,10 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
     } catch (error: any) {
       console.error('Error fetching model details:', error.message);
       alert('Error fetching model data. Please check the URL and try again.');
+    } finally {
+      // Always reset loading states regardless of success/failure
+      setIsLoading(false);
+      setLoadingMessage(null);
     }
   };
 
@@ -653,7 +670,15 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                 disabled={isLoading || !model}
                 className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
               >
-                {isLoading ? 'Fetching...' : 'Fetch Model Details'}
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Fetching...
+                  </span>
+                ) : 'Fetch Model Details'}
               </button>
             </div>
           )}
@@ -676,7 +701,15 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                 disabled={isLoading || !client}
                 className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
               >
-                {isLoading ? 'Fetching...' : 'Fetch Model Details'}
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Fetching...
+                  </span>
+                ) : 'Fetch Model Details'}
               </button>
               {/* <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Raw Data (Optional):</label>
@@ -702,10 +735,11 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
           )} */}
         </>
       ) : (
-        <form onSubmit={handleSubmit}>
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex space-x-4">
-              <button 
+        <> {/* Add fragment to wrap form and preview */}
+          <form onSubmit={handleSubmit}>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex space-x-4">
+                <button
                 type="button" 
                 onClick={() => setEditMode('form')} 
                 className={`px-4 py-2 rounded-md ${editMode === 'form' ? 'bg-blue-500 text-white' : 'bg-gray-700 text-gray-300'}`}
@@ -730,40 +764,16 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                 Preview
               </button>
             </div>
-            <button 
-              type="submit" 
-              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
-            >
-              Create App
-            </button>
-          </div>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+              >
+                Create App
+              </button>
+            </div>
 
-          {editMode === 'preview' ? (
-            <AppPreview 
-              config={{
-                name: appName,
-                type: appType,
-                ...(appType === 'gradio' ? 
-                  { client, path, endpoint, endpoints } : 
-                  { model: `${model.split('/')[0]}/${model.split('/')[1]}`, version }
-                ),
-                inputs,
-                outputs
-              }}
-              onEndpointChange={(newEndpoint) => {
-                setEndpoint(newEndpoint);
-                if (gradioEndpoints) {
-                  const newGradioEndpoint = gradioEndpoints.find((item) => item.key === newEndpoint);
-                  if (newGradioEndpoint) {
-                    const { inputs: newInputs, outputs: newOutputs } = newGradioEndpoint;
-                    setInputs(newInputs || []);
-                    setOutputs(newOutputs || []);
-                  }
-                }
-              }}
-              onAppNameChange={setAppName}
-            />
-          ) : editMode === 'form' ? (
+            {/* Keep form and json modes inside the form */}
+            {editMode === 'form' ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -869,8 +879,16 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                 </div>
               )}
 
-              {/* Show loading message */}
-              {loadingMessage && <div className="text-yellow-300">{loadingMessage}</div>}
+              {/* Show loading message with more visibility */}
+              {loadingMessage && (
+                <div className="my-4 p-3 bg-blue-900/30 border border-blue-500 rounded-md text-blue-200 flex items-center">
+                  <svg className="animate-spin h-5 w-5 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {loadingMessage}
+                </div>
+              )}
 
               {/* Hide inputs and outputs while loading */}
               {isLoading ? (
@@ -889,17 +907,18 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                             placeholder="Key"
                             className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
                           />
-                          <select
-                            value={input.component}
-                            onChange={(e) => handleInputChange(index, 'component', e.target.value as InputItem['component'])}
-                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
-                          >
-                            <option value="prompt">Prompt</option>
-                            <option value="image">Image</option>
-                            <option value="checkbox">Checkbox</option>
-                            <option value="number">Number</option>
-                            <option value="video">Video</option>
-                          </select>
+                            <select
+                              value={input.component}
+                              onChange={(e) => handleInputChange(index, 'component', e.target.value as InputItem['component'])}
+                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-md text-white"
+                            >
+                              <option value="prompt">Prompt</option>
+                              <option value="image">Image</option>
+                              <option value="audio">Audio</option>
+                              <option value="checkbox">Checkbox</option>
+                              <option value="number">Number</option>
+                              <option value="video">Video</option>
+                            </select>
                         </div>
                         <div className="grid grid-cols-2 gap-4 mt-2">
                           <input
@@ -1084,10 +1103,39 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                 </>
               )}
             </>
-          ) : (
-            <JsonEditor value={jsonConfig} onChange={handleJsonChange} />
+            ) : editMode === 'json' ? (
+              <JsonEditor value={jsonConfig} onChange={handleJsonChange} />
+            ) : null}
+          </form>
+
+          {/* Render AppPreview outside the form when in preview mode */}
+          {editMode === 'preview' && (
+            <AppPreview
+              config={{
+                name: appName,
+                type: appType,
+                ...(appType === 'gradio' ?
+                  { client, path, endpoint, endpoints } :
+                  { model: `${model.split('/')[0]}/${model.split('/')[1]}`, version }
+                ),
+                inputs,
+                outputs
+              }}
+              onEndpointChange={(newEndpoint) => {
+                setEndpoint(newEndpoint);
+                if (gradioEndpoints) {
+                  const newGradioEndpoint = gradioEndpoints.find((item) => item.key === newEndpoint);
+                  if (newGradioEndpoint) {
+                    const { inputs: newInputs, outputs: newOutputs } = newGradioEndpoint;
+                    setInputs(newInputs || []);
+                    setOutputs(newOutputs || []);
+                  }
+                }
+              }}
+              onAppNameChange={setAppName}
+            />
           )}
-        </form>
+        </> // Close fragment
       )}
 
       {modelData && (

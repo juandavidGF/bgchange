@@ -10,6 +10,8 @@ export async function GET() {
     const fetchedApps = await collection.find({});
     const apps = await fetchedApps.toArray();
 
+    console.log('Fetched apps:', apps);
+
     return NextResponse.json(apps, { status: 200 });
   } catch (error: any) {
     console.error('Error in GET /api/create/get:', error);
