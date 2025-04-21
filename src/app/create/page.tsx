@@ -53,7 +53,7 @@ export default function CreateApp() {
   const [modelUrl, setModelUrl] = useState('');
   const [modelData, setModelData] = useState<any>(null);
   const [editMode, setEditMode] = useState<'form' | 'json' | 'preview'>('form');
-const [implementationStep, setImplementationStep] = useState<number>(1);
+  const [implementationStep, setImplementationStep] = useState<number>(1);
   const [jsonConfig, setJsonConfig] = useState('');
   const [appName, setAppName] = useState('');
   const [inputs, setInputs] = useState<InputItem[]>([]);
@@ -186,9 +186,6 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
       return;
     }
 
-    const filteredInputs = inputs.filter(input => input.value !== null); // Exclude inputs with null value
-    // const filteredOutputs = outputs.filter(output => output.key !== null);
-
     const newApp: Configuration = {
       name: appName,
       type: appType,
@@ -205,8 +202,37 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
       newApp.version = version;
     }
 
+    // Use SSE if enabled and Gradio app
+    if (process.env.USE_SSE_EXPERIMENTAL === 'true' && appType === 'gradio') {
+      try {
+        const eventSource = new EventSource(`/api/experimental/sse/predict?client=${client}&endpoint=${endpoint}`);
+        
+        eventSource.onmessage = (event) => {
+          const result = JSON.parse(event.data);
+          // Update preview with result
+          setOutputs(prev => prev.map((out, i) => ({
+            ...out,
+            value: result[i] || out.value
+          })));
+        };
+
+        eventSource.onerror = () => {
+          alert('SSE connection failed - falling back to regular API');
+          eventSource.close();
+          submitRegular(newApp);
+        };
+
+        return;
+      } catch (error) {
+        console.error('SSE failed, falling back:', error);
+      }
+    }
+
+    submitRegular(newApp);
+  };
+
+  const submitRegular = async (newApp: Configuration) => {
     try {
-      console.log('Submitting new app:', !!newApp);
       const response = await fetch('/api/create', {
         method: 'POST',
         headers: {
@@ -217,11 +243,6 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
 
       if (response.ok) {
         alert('App created successfully!');
-        const checkAppExists = async () => {
-          const res = await fetch(`/api/app/${appName}`);
-          return res.ok;
-        };
-
         router.push(`/app/${appName}`);
       } else {
         alert('Failed to create app');

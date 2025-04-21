@@ -298,28 +298,58 @@ interface ConvertToIOResponse {
   };
 }
 async function convertToIO({ app_info, app, client }: { app_info: any; app?: any, client: string }): Promise<ConvertToIOResponse | null> {
-  // Try /gradio_api/info first
   const appRoot = app?.config?.root || constructAppRoot(client);
-  const apiUrlGradioAPI = `${appRoot}/gradio_api/info`;
+  console.log('convertToIO', {appRoot});
   const apiUrlInfo = `${appRoot}/info`;
+  const apiUrlGradioAPI = `${appRoot}/gradio_api/info`;
+
+  const responseInfo = await fetch(`${appRoot}/info`);
+  const apiInfo = await responseInfo.json();
+
+  console.log('flag0', {apiInfo, ok: responseInfo.ok});
+
+
   
   if (appRoot) {
     try {
-      console.log(`Fetching ${apiUrlGradioAPI}`);
-      const response = await fetch(apiUrlGradioAPI);
+      console.log(`Fetching ${apiUrlInfo}`);
+      const response = await fetch(apiUrlInfo);
+      console.log('flag2', {response});
       if (response.ok) {
         const apiInfo = await response.json();
         console.log('flag4', {apiInfo});
         if (apiInfo.named_endpoints && Object.keys(apiInfo.named_endpoints).length > 0) {
           console.log("Using /gradio_api/info data");
-          return {formattedEndpoints: formatEndpointsFromApiInfo(apiInfo), api_info: appRoot};
+          return {
+            formattedEndpoints: formatEndpointsFromApiInfo(apiInfo), 
+            api_info: {
+              api: apiInfo, 
+              source: "/info"
+            }
+          };
         }
+      } else {
+        const response = await fetch(`${appRoot}/gradio_api/info`);
+        if (response.ok) {
+          const apiGradioApiInfo = await response.json();
+          console.log('flag6', {apiGradioApiInfo});
+          if (apiGradioApiInfo.named_endpoints && Object.keys(apiGradioApiInfo.named_endpoints).length > 0) {
+            return {
+              formattedEndpoints: formatEndpointsFromApiInfo(apiGradioApiInfo),
+              api_info: {
+                api: apiGradioApiInfo,
+                source: "/gradio_api/info"
+              }
+            };
+          }
+        }
+
+        
       }
-      console.log("/gradio_api/info fetch succeeded but returned no useful data");
     } catch (error: any) {
-      console.error("Failed to fetch /gradio_api/info:", error.message);
-      console.log(`Fetching ${apiUrlInfo}`);
-      const response = await fetch(apiUrlInfo);
+      console.log(`xxx Fetching ${apiUrlInfo}`);
+      const response = await fetch(apiUrlGradioAPI);
+      console.log('flag3', {response});
       if (response.ok) {
         const apiInfo = await response.json();
         console.log('flag5', {apiInfo});
@@ -329,7 +359,7 @@ async function convertToIO({ app_info, app, client }: { app_info: any; app?: any
             formattedEndpoints: formatEndpointsFromApiInfo(apiInfo),
             api_info: {
               api: apiInfo, 
-              source: "appRoot"
+              source: "/gradio_api/info"
             }
           };
         }

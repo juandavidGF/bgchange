@@ -166,25 +166,29 @@ export async function POST(request: Request) {
       
       try {
         // Get API info to validate endpoint and parameters
-        const apiInfo = await app.view_api();
-        if (!apiInfo.named_endpoints[typedConfig.endpoint]) {
-          throw new Error(`Endpoint ${typedConfig.endpoint} not found in app`);
-        }
-
-        const endpointInfo = apiInfo.named_endpoints[typedConfig.endpoint];
-        const requiredParams = endpointInfo.parameters
-          ? endpointInfo.parameters
-              .filter((p: any) => !p.parameter_has_default)
-              .map((p: any) => p.parameter_name)
-          : [];
-
-        const missingParams = requiredParams.filter(
-          (param: string) => processedParams[param] === undefined
-        );
+        // const apiInfo = await app.view_api();
         
-        if (missingParams.length > 0) {
-          throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
-        }
+        // if (!apiInfo.named_endpoints[typedConfig.endpoint]) {
+        //   console.error('Available endpoints:', apiInfo.named_endpoints);
+        //   // TODO we need to manage the alternative
+        //   throw new Error(`Endpoint ${typedConfig.endpoint} not found in app`);
+        // }
+        // console.log('after apiInfo:');
+
+        // const endpointInfo = apiInfo.named_endpoints[typedConfig.endpoint];
+        // const requiredParams = endpointInfo.parameters
+        //   ? endpointInfo.parameters
+        //       .filter((p: any) => !p.parameter_has_default)
+        //       .map((p: any) => p.parameter_name)
+        //   : [];
+
+        // const missingParams = requiredParams.filter(
+        //   (param: string) => processedParams[param] === undefined
+        // );
+        
+        // if (missingParams.length > 0) {
+        //   throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
+        // }
 
         // Log detailed parameter info before prediction
         console.log('Final prediction parameters:', {

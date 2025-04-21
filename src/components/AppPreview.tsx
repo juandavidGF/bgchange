@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Configuration } from '@/types';
 import { PhotoIcon, FaceSmileIcon, SparklesIcon, VideoCameraIcon, MicrophoneIcon } from "@heroicons/react/24/outline";
 import { ThreeDots } from "react-loader-spinner";
@@ -115,157 +115,294 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
   };
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const eventSourceRef = useRef<EventSource | null>(null);
 
-  const handleSubmitPreview = async () => {
-    console.log('App Preview Submit');
-    setError(null);
-    // Validate required inputs first
-    let hasErrors = false;
-    config.inputs.forEach(input => {
-      if (!input.show) return;
-      
-      switch(input.component.toLowerCase()) {
-        case 'prompt':
-        case 'textbox':
-          if (!inputValues[input.key]) {
-            setError(`Must fill the field ${input.label || input.key}`);
-            hasErrors = true;
-          }
-          break;
-        case 'image':
-          if (!files[input.key]) {
-            setError(`Must upload an image at "${input.label || input.key}"`);
-            hasErrors = true;
-          }
-          break;
-                case 'video':
-                  if (!files[input.key]) {
-                    setError(`Must upload a video at "${input.label || input.key}"`);
-                    hasErrors = true;
-                  }
-                  break;
-                case 'audio':
-                  if (!files[input.key]) {
-                    setError(`Must upload an audio file at "${input.label || input.key}"`);
-                    hasErrors = true;
-                  }
-                  break;
+  // Cleanup SSE connection on component unmount
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        console.log("Closing SSE connection on unmount");
+        eventSourceRef.current.close();
       }
-    });
+    };
+  }, []);
 
-    if (hasErrors) {
-      return;
-    }
-
+  const fetchRegularPreview = async () => {
+    console.log('Fetching regular preview');
     setLoading(true);
     setOutputValues({});
+    setError(null);
 
     try {
-      // Package both config and params into a single request
-      const params: any = {
-        prompt: null,
-        image: {},
-        video: null
-      };
-
+      const params: any = {};
       config.inputs.forEach(input => {
         if (!input.show) return;
-        
-        switch (input.component.toLowerCase()) {
-          case 'prompt':
-          case 'textbox':
-            params.prompt = inputValues[input.key] || null;
-            break;
-          case 'image':
-            params.image[input.key] = base64Images[input.key] || null;
-            break;
-          case 'video':
-            params.video = base64Images[input.key] || null;
-            break;
-          default:
-            params[input.key] = inputValues[input.key] || null;
+        params[input.key] = inputValues[input.key] ?? null;
+        if (input.component === 'image' && base64Images[input.key]) {
+          params[input.key] = base64Images[input.key];
         }
+        // Add handling for other file types if needed (audio, video)
       });
-
-      console.log('before app preview');
 
       const response = await fetch('/api/preview', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          config,
-          params
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config, params })
       });
-      console.log('after app preview');
 
       if (!response.ok) {
-        throw new Error('Failed to process request');
+        const errorData = await response.json().catch(() => ({ error: 'Request failed with status ' + response.status }));
+        throw new Error(errorData.error || `Request failed with status ${response.status}`);
       }
 
       const responseData = await response.json();
-      
-      let result;
-      
-      // If we have an ID, use polling. Otherwise use immediate result
-      if (responseData.id) {
-        // Start polling for results
-        let status = null;
-        do {
+      // Define a type for the expected result structure
+      type PredictionResult = {
+        status: 'succeeded' | 'failed' | 'processing' | 'starting';
+        output?: any; // Can be array, object, or primitive
+        error?: string;
+      };
+
+      let result: PredictionResult;
+
+      if (responseData.id && config.type === 'replicate') { // Only poll for Replicate
+        console.log("Polling Replicate prediction:", responseData.id);
+        let status = responseData.status;
+        let pollCount = 0;
+        const maxPolls = 60; // Poll for max 60 seconds
+
+        // Initialize result before loop
+        result = { status: responseData.status, output: responseData.output };
+
+        while (status !== 'succeeded' && status !== 'failed' && pollCount < maxPolls) {
           await sleep(1000);
           const pollResponse = await fetch(`/api/preview/get?id=${responseData.id}`);
-          result = await pollResponse.json();
-          
-          if (result.error) {
-            throw new Error(result.error);
-          }
-          
+          // Assign the fetched result, ensuring it matches PredictionResult type
+          result = await pollResponse.json() as PredictionResult;
+          console.log("Poll status:", result.status);
+          if (result.error) throw new Error(result.error);
           status = result.status;
-        } while (status !== 'succeeded' && status !== 'failed');
-
-        if (status === 'failed') {
-          throw new Error('Processing failed');
+          pollCount++;
         }
-      } else {
-        // Use immediate result
-        result = {
-          status: 'succeeded',
-          output: responseData.output
-        };
+        if (status === 'failed') throw new Error(result.error || 'Processing failed');
+        if (pollCount >= maxPolls && status !== 'succeeded') throw new Error('Prediction timed out');
+
+      } else { // Gradio or immediate Replicate result
+        result = { status: 'succeeded', output: responseData.output };
       }
 
-      // Map the outputs based on the configuration
+      // Map outputs
       const outputs: Record<string, any> = {};
       console.log('Mapping outputs:', { result, configOutputs: config.outputs });
       (config.outputs || []).forEach((output, index) => {
-        if (!output.show) return;
-        
+        if (!output.show || !result || result.output === undefined) return; // Add checks for result and result.output
+
         if (Array.isArray(result.output)) {
-          // If output is an array and we expect array type
-          if (output.type === 'array') {
-            // For array types, we want the whole array
-            outputs[output.key] = result.output;
-          } else if (typeof result.output[0] === 'object') {
-            // If it's an object with url, use that
-            outputs[output.key] = result.output[0].url || result.output[0][output.key];
-          } else {
-            // Otherwise just use the indexed value
-            outputs[output.key] = result.output[index];
-          }
+           if (output.type === 'array') {
+             outputs[output.key] = result.output; // Assign whole array if expected
+           } else {
+             // Ensure index is within bounds
+             if (index < result.output.length) {
+              outputs[output.key] = result.output[index]; // Assign by index otherwise
+             } else {
+              console.warn(`Output index ${index} out of bounds for result array.`);
+             }
+           }
+        } else if (typeof result.output === 'object' && result.output !== null) {
+           // Handle cases where output might be an object with keys matching output keys
+          outputs[output.key] = result.output[output.key] ?? result.output;
         } else {
-          // If it's a single value, assign it to the first output
+           // Assign single value to the first output key
+          if (index === 0) {
           outputs[output.key] = result.output;
+          }
         }
       });
 
       console.log('Setting outputs:', outputs);
       setOutputValues(outputs);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error("Regular preview fetch error:", err);
+      setError(err instanceof Error ? err.message : 'An error occurred during preview.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmitPreview = async () => {
+    console.log('App Preview Submit');
+    setError(null);
+    setOutputValues({}); // Clear previous outputs
+
+    // Close any existing SSE connection
+    if (eventSourceRef.current) {
+      console.log("Closing previous SSE connection");
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    // Validate inputs
+    let hasErrors = false;
+    config.inputs.forEach(input => {
+      if (!input.show) return;
+      // Basic check: if required is true (or undefined, assuming required by default if shown)
+      // and the value is null/undefined/empty string, and it's not a file input with a file selected
+      const isFileSelected = (input.component === 'image' || input.component === 'audio' || input.component === 'video') && files[input.key];
+      const valueIsEmpty = inputValues[input.key] === null || inputValues[input.key] === undefined || inputValues[input.key] === '';
+
+      if ((input.required !== false) && valueIsEmpty && !isFileSelected) {
+        setError(`Input "${input.label || input.key}" is required.`);
+        hasErrors = true;
+      }
+    });
+    if (hasErrors) return;
+
+    setLoading(true);
+
+    // Check feature flag and app type
+    const useSSE = process.env.NEXT_PUBLIC_USE_SSE_EXPERIMENTAL === 'true' && config.type === 'gradio';
+    console.log('Using SSE:', useSSE);
+    console.log('Input values:', inputValues);
+
+    if (useSSE) {
+      console.log('Attempting SSE connection for Gradio preview...');
+      try {
+        // Construct query parameters for SSE endpoint
+        const params = new URLSearchParams();
+        params.append('client', config.client || '');
+        params.append('endpoint', config.endpoint || '');
+
+        // Add input values to query params
+        config.inputs.forEach(input => {
+          if (input.show) {
+            const value = inputValues[input.key];
+            if (value !== null && value !== undefined) {
+              // Handle file inputs (send base64)
+              if ((input.component === 'image' || input.component === 'audio' || input.component === 'video') && base64Images[input.key]) {
+                 params.append(input.key, base64Images[input.key]);
+              } else if (typeof value === 'boolean') {
+                 params.append(input.key, value.toString());
+              } else {
+                 params.append(input.key, String(value)); // Convert numbers etc. to string
+              }
+            }
+          }
+        });
+
+        // Phase 1: POST to /init to get event_id
+        const inputData: any[] = [];
+        config.inputs.forEach(input => {
+          if (input.show) {
+            const value = inputValues[input.key];
+            if ((input.component === 'image' || input.component === 'audio' || input.component === 'video') && base64Images[input.key]) {
+              inputData.push({ 
+                name: files[input.key]?.name || 'input_file', 
+                data: base64Images[input.key], 
+                is_file: true 
+              });
+            } else {
+              inputData.push(value ?? null);
+            }
+          } else {
+            inputData.push(input.value ?? null);
+          }
+        });
+
+        const initResponse = await fetch('/api/experimental/sse/init', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            client: config.client,
+            endpoint: config.endpoint,
+            inputs: inputData
+          })
+        });
+
+        if (!initResponse.ok) {
+          const errorData = await initResponse.json().catch(() => ({ error: 'Init request failed' }));
+          throw new Error(errorData.error || `SSE Init failed: ${initResponse.status}`);
+        }
+
+        const { event_id, client: returnedClient } = await initResponse.json();
+        if (!event_id) throw new Error('Did not receive event_id from init endpoint');
+
+        // Phase 2: GET from /stream using the event_id
+        const streamUrl = `/api/experimental/sse/stream?event_id=${event_id}&client=${returnedClient}&endpoint=${config.endpoint}`;
+        const eventSource = new EventSource(streamUrl);
+        eventSourceRef.current = eventSource; // Store reference for cleanup
+
+        eventSource.onmessage = (event) => {
+          console.log('SSE Message:', event.data ? event.data.substring(0,100) + '...' : 'No data');
+          setLoading(false); // Stop loading indicator on first message (might be heartbeat or generating)
+          try {
+            // Check for specific SSE events if the backend sends them
+             if (event.type === 'message') { // Default event type
+               const messageData = JSON.parse(event.data);
+               // Assuming messageData is the array of outputs or final result object
+               const outputs: Record<string, any> = {};
+                (config.outputs || []).forEach((output, index) => {
+                  if (!output.show) return;
+                  if (Array.isArray(messageData)) {
+                    outputs[output.key] = messageData[index];
+                  } else if (typeof messageData === 'object' && messageData !== null) {
+                    outputs[output.key] = messageData[output.key] ?? messageData; // Try matching key or assign whole object
+                  } else {
+                    // Assign single value to the first output key
+                    if (index === 0) {
+                       outputs[output.key] = messageData;
+                    }
+                  }
+                });
+                setOutputValues(prev => ({ ...prev, ...outputs })); // Merge updates
+             } else if (event.type === 'generating') {
+                console.log("SSE Generating:", event.data);
+                // Potentially update UI with intermediate state
+             } else if (event.type === 'complete') {
+                console.log("SSE Complete event received.");
+                eventSource.close();
+                eventSourceRef.current = null;
+             } else if (event.type === 'heartbeat') {
+                console.log("SSE Heartbeat");
+             }
+
+          } catch (parseError) {
+            console.error('Error parsing SSE data:', parseError, "Raw data:", event.data);
+            setError('Received invalid data from server.');
+            eventSource.close();
+            eventSourceRef.current = null;
+            setLoading(false);
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          console.error('SSE Error:', error);
+          // Avoid setting error if it was just closed normally
+          if (eventSourceRef.current) {
+             setError('SSE connection failed.');
+             eventSource.close();
+             eventSourceRef.current = null;
+             setLoading(false);
+          }
+          // Optional: Fallback to regular fetch
+          // fetchRegularPreview();
+        };
+
+        // Note: The backend currently sends 'message' event. If it sends 'complete' or custom 'error_event',
+        // add specific listeners here like:
+        // eventSource.addEventListener('complete', () => { ... });
+        // eventSource.addEventListener('error_event', (event: any) => { ... });
+
+
+      } catch (err) {
+        console.error('Error initiating SSE:', err);
+        setError(err instanceof Error ? err.message : 'Failed to start SSE connection.');
+        setLoading(false);
+        // Optional: Fallback
+        // fetchRegularPreview();
+      }
+    } else {
+      // Use existing fetch implementation for Replicate or if SSE is disabled
+      fetchRegularPreview();
     }
   };
 
