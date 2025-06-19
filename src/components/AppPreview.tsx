@@ -215,7 +215,16 @@ export default function AppPreview({ config, onEndpointChange, onAppNameChange }
         let status = null;
         do {
           await sleep(1000);
-          const pollResponse = await fetch(`/api/preview/get?id=${responseData.id}`);
+          
+          // Build polling URL with proper parameters for each provider
+          let pollUrl = `/api/preview/get?id=${responseData.id}`;
+          
+          // For FAL requests, we need to include the endpoint_id
+          if (config.type === 'fal' && config.endpoint_id) {
+            pollUrl += `&endpoint_id=${config.endpoint_id}`;
+          }
+          
+          const pollResponse = await fetch(pollUrl);
           result = await pollResponse.json();
           
           if (result.error) {

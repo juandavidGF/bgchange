@@ -3,7 +3,10 @@ import Replicate from 'replicate';
 import { Client, handle_file } from "@gradio/client";
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
+const FAL_KEY = process.env.FAL_KEY;
+
 if (!REPLICATE_API_TOKEN) throw Error('REPLICATE_API_TOKEN not found');
+if (!FAL_KEY) throw Error('FAL_KEY not found');
 
 async function convertBase64ToBlob(base64: string): Promise<Blob> {
   const response = await fetch(base64);
@@ -18,13 +21,14 @@ interface ConfigInput {
 }
 
 interface PreviewConfig {
-  type: 'replicate' | 'gradio';
+  type: 'replicate' | 'gradio' | 'fal';
   model?: string;
   version?: string;
   client?: string;
   path?: string;
   inputs: ConfigInput[];
   endpoint?: string;
+  endpoint_id?: string;
 }
 
 export async function POST(request: Request) {
@@ -260,6 +264,69 @@ export async function POST(request: Request) {
         output: result.data
       }, { status: 201 });
     }
+    // Handle FAL models
+    else if (config.type === 'fal') {
+      const typedConfig = config as PreviewConfig;
+      
+      if (!typedConfig.endpoint_id) {
+        throw new Error('Endpoint ID is required for FAL models');
+      }
+
+      // Process inputs according to configuration
+      const input: { [key: string]: any } = {};
+      
+      for (const item of typedConfig.inputs) {
+        if (item.show) {
+          switch (item.component) {
+            case 'image':
+              if (params.image && params.image[item.key]) {
+                input[item.key] = params.image[item.key];
+              }
+              break;
+            case 'prompt':
+              input[item.key] = params[item.key];
+              break;
+            case 'checkbox':
+              input[item.key] = params[item.key] || false;
+              break;
+            case 'number':
+              input[item.key] = params[item.key] !== undefined ? Number(params[item.key]) : undefined;
+              break;
+            default:
+              input[item.key] = params[item.key];
+          }
+        } else if (item.value !== undefined) {
+          // Use default value for hidden inputs
+          input[item.key] = item.value;
+        }
+      }
+
+      console.log('FAL input:', input);
+
+      // Submit job to FAL
+      const response = await fetch(`https://queue.fal.run/${typedConfig.endpoint_id}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${process.env.FAL_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(input)
+      });
+
+      if (!response.ok) {
+        throw new Error(`FAL API error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('FAL job submitted:', result);
+
+      return NextResponse.json({ 
+        id: result.request_id || `fal_${Date.now()}`,
+        status: result.status || 'starting',
+        fal_request_id: result.request_id,
+        endpoint_id: typedConfig.endpoint_id
+      }, { status: 201 });
+    }
 
     throw new Error('Unsupported model type');
   } catch (error: any) {
@@ -275,6 +342,8 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const endpoint_id = searchParams.get('endpoint_id');
+    
     if (!id) {
       return NextResponse.json(
         { error: 'Prediction ID is required' },
@@ -287,6 +356,68 @@ export async function GET(request: Request) {
       return NextResponse.json({
         status: 'succeeded',
         output: null // Output was already returned in the POST response
+      });
+    }
+    
+    // For FAL results
+    if (id.startsWith('fal_') || endpoint_id) {
+      if (!endpoint_id) {
+        return NextResponse.json(
+          { error: 'endpoint_id is required for FAL predictions' },
+          { status: 400 }
+        );
+      }
+
+      const actualRequestId = id.startsWith('fal_') ? id.replace('fal_', '') : id;
+      
+      // Check FAL job status
+      const statusResponse = await fetch(
+        `https://queue.fal.run/${endpoint_id}/requests/${actualRequestId}/status`,
+        {
+          headers: {
+            'Authorization': `Key ${process.env.FAL_KEY}`
+          }
+        }
+      );
+
+      if (!statusResponse.ok) {
+        throw new Error(`FAL status check failed: ${statusResponse.status}`);
+      }
+
+      const status = await statusResponse.json();
+      console.log('FAL prediction status:', status);
+
+      // If completed, get the result
+      if (status.status === 'COMPLETED') {
+        const resultResponse = await fetch(
+          `https://queue.fal.run/${endpoint_id}/requests/${actualRequestId}`,
+          {
+            headers: {
+              'Authorization': `Key ${process.env.FAL_KEY}`
+            }
+          }
+        );
+
+        if (resultResponse.ok) {
+          const result = await resultResponse.json();
+          return NextResponse.json({
+            status: 'succeeded',
+            output: result,
+          });
+        }
+      }
+
+      // Map FAL status to common format
+      const mappedStatus = status.status === 'COMPLETED' ? 'succeeded' : 
+                          status.status === 'FAILED' ? 'failed' : 
+                          'processing';
+
+      return NextResponse.json({
+        status: mappedStatus,
+        output: null,
+        fal_status: status.status,
+        queue_position: status.queue_position,
+        progress: status.progress
       });
     }
     

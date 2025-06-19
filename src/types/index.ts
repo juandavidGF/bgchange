@@ -65,12 +65,15 @@ const inferOutputComponent = (output: OutputItem): OutputItem => {
 
 export type Configuration = {
   name: string;
-  type: 'gradio' | 'replicate';
+  type: 'gradio' | 'replicate' | 'fal';
   client?: string;
   path?: string;
   endpoint?: string;
   model?: `${string}/${string}` | `${string}/${string}:${string}`;
   version?: string | null;
+  // FAL-specific fields
+  endpoint_id?: string;  // e.g., "fal-ai/wan-vace-14b/reframe"
+  fal_endpoint?: string; // FAL base URL (default: https://queue.fal.run)
   inputs: InputItem[];
   outputs?: OutputItem[];
 };

@@ -48,7 +48,7 @@ export default function CreateApp() {
   const router = useRouter();
 
   const [isRawDataStep, setIsRawDataStep] = useState(true);
-  const [appType, setAppType] = useState<'gradio' | 'replicate'>('gradio');
+  const [appType, setAppType] = useState<'gradio' | 'replicate' | 'fal'>('gradio');
   const [rawData, setRawData] = useState('');
   const [modelUrl, setModelUrl] = useState('');
   const [modelData, setModelData] = useState<any>(null);
@@ -374,17 +374,20 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
     component?: 'image' | 'prompt' | 'checkbox' | 'number' | 'video';
   }
 
-  const handleFetchModelDetails = async (type: 'replicate' | 'gradio') => {
+  const handleFetchModelDetails = async (type: 'replicate' | 'gradio' | 'fal') => {
     try {
       setIsLoading(true);
-      setLoadingMessage(`Fetching ${type === 'gradio' ? 'Gradio space' : 'Replicate model'} details...`);
+      setLoadingMessage(`Fetching ${type === 'gradio' ? 'Gradio space' : type === 'replicate' ? 'Replicate model' : 'FAL schema'} details...`);
 
+      const requestData = { type, client, model, version, endpoint_id: endpoint };
+      console.log('🚀 [DEBUG] Sending request:', requestData);
+      
       const response = await fetch('/api/create/fetch-model-details', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ type, client, model, version }), // Send model and version in the request body
+        body: JSON.stringify(requestData),
       });
 
       if (!response.ok) {
@@ -400,13 +403,12 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
       
       console.log({formattedEndpoints});
 
-      if (view_api) {
-        console.log('API view is available');
-        alert('API view is available');
-      } else {
-        console.log('API view is NOT available');
-        alert('API view is NOT available');
-
+      if (type === 'gradio') {
+        if (view_api) {
+          console.log('API view is available');
+        } else {
+          console.log('API view is NOT available');
+        }
       }
 
       // I: I have the enpoints on formattedEndpoints
@@ -453,6 +455,29 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
         }
 
         setIsRawDataStep(false); 
+      } else if (type === 'fal') {
+        console.log('FAL response:', data);
+        
+        // FAL returns inputs and outputs directly
+        const { inputs: falInputs, outputs: falOutputs, endpoint_id } = data;
+        
+        inputItems = falInputs || [];
+        outputItems = falOutputs || [];
+
+        // Set app name based on endpoint_id if not already set
+        if (!appName && endpoint_id) {
+          const modelName = endpoint_id.split('/').pop() || endpoint_id;
+          setAppName(modelName);
+        }
+
+        // Immediately set inputs and outputs
+        setInputs(inputItems);
+        setOutputs(outputItems);
+
+        // Sync JSON config
+        updateJsonConfig(inputItems, outputItems);
+        
+        setIsRawDataStep(false);
       } else if (type === 'replicate') {
         // Process inputs
         inputItems = Object.entries(inputs).map(([key, value]) => {
@@ -584,6 +609,8 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
       config.client = client;
       config.path = path;
       config.endpoint = endpoint;
+    } else if (appType === 'fal') {
+      config.endpoint_id = endpoint;
     }
 
     setJsonConfig(JSON.stringify(config, null, 2));
@@ -595,7 +622,7 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
   };
 
   const handleAppTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setAppType(e.target.value as 'gradio' | 'replicate');
+    setAppType(e.target.value as 'gradio' | 'replicate' | 'fal');
     updateJsonConfig(inputs, outputs);
   };
 
@@ -644,11 +671,12 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
             <label className="block text-sm font-medium text-gray-300 mb-1">App Type:</label>
             <select
               value={appType}
-              onChange={(e) => setAppType(e.target.value as 'gradio' | 'replicate')}
+              onChange={(e) => setAppType(e.target.value as 'gradio' | 'replicate' | 'fal')}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="replicate">Replicate</option>
               <option value="gradio">Gradio</option>
+              <option value="fal">FAL</option>
             </select>
           </div>
 
@@ -711,16 +739,40 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                   </span>
                 ) : 'Fetch Model Details'}
               </button>
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Raw Data (Optional):</label>
-                <textarea
-                  ref={textareaRef}
-                  value={rawData}
-                  onChange={handleRawDataChange}
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-[20vh]"
-                  placeholder='Paste raw data here (optional)...'
+            </div>
+          )}
+
+          {appType === 'fal' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Endpoint ID:</label>
+                <input
+                  type="text"
+                  value={endpoint}
+                  onChange={(e) => setEndpoint(e.target.value)}
+                  placeholder="e.g., fal-ai/wan-vace-14b/reframe"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-              </div> */}
+                <p className="text-sm text-gray-400 mt-1">
+                  Enter the FAL endpoint ID (e.g., fal-ai/model-name or fal-ai/model/version)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleFetchModelDetails('fal')}
+                disabled={isLoading || !endpoint}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400"
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Fetching...
+                  </span>
+                ) : 'Fetch FAL Schema'}
+              </button>
             </div>
           )}
 
@@ -795,6 +847,7 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                   >
                     <option value="gradio">Gradio</option>
                     <option value="replicate">Replicate</option>
+                    <option value="fal">FAL</option>
                   </select>
                 </div>
               </div>
@@ -842,6 +895,23 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
                         required
                       />
                     )}
+                  </div>
+                </div>
+              ) : appType === 'fal' ? (
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Endpoint ID:</label>
+                    <input
+                      type="text"
+                      value={endpoint}
+                      onChange={handleEndpointChange}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g., fal-ai/flux-pro/kontext"
+                      required
+                    />
+                    <p className="text-sm text-gray-400 mt-1">
+                      The FAL endpoint ID for this model
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -1114,8 +1184,10 @@ const [implementationStep, setImplementationStep] = useState<number>(1);
               config={{
                 name: appName,
                 type: appType,
-                ...(appType === 'gradio' ?
-                  { client, path, endpoint, endpoints } :
+                ...(appType === 'gradio' ? 
+                  { client, path, endpoint, endpoints } : 
+                  appType === 'fal' ?
+                  { endpoint_id: endpoint } :
                   { model: `${model.split('/')[0]}/${model.split('/')[1]}`, version }
                 ),
                 inputs,
